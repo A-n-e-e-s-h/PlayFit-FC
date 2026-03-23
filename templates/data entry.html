@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Coach Data Entry Management - PLAYFIT FC</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1a2e22;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #326748;
+            border-radius: 10px;
+        }
+
+        /* Hide number input spinners */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen">
+    <!-- Top Navigation Bar -->
+    <header
+        class="border-b border-solid border-[#234833] bg-background-light dark:bg-background-dark px-6 py-3 sticky top-0 z-50">
+        <div class="max-w-[1440px] mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-8">
+                <div class="flex items-center gap-3 text-primary">
+                    <div class="size-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-primary">analytics</span>
+                    </div>
+                    <h2 class="text-white text-lg font-bold leading-tight tracking-tight">PLAYFIT FC</h2>
+                </div>
+
+            </div>
+            <div class="flex items-center gap-6">
+                <nav class="hidden lg:flex items-center gap-8">
+                    <a class="text-[#92c9a9] hover:text-primary text-sm font-medium transition-colors"
+                        href="/dashboard">Dashboard</a>
+                    <a class="text-[#92c9a9] hover:text-primary text-sm font-medium transition-colors"
+                        href="/player_management">Players</a>
+                    <a class="text-white border-b-2 border-primary pb-1 text-sm font-medium" href="/data_entry">Data
+                        Entry</a>
+                    <a class="text-[#92c9a9] hover:text-primary text-sm font-medium transition-colors"
+                        href="/analytics">Reports</a>
+                    <a class="text-red-500 hover:text-red-400 text-sm font-medium transition-colors"
+                        href="/signout">Sign Out</a>
+                </nav>
+                <div class="flex gap-2">
+                    <button
+                        class="flex items-center justify-center rounded-lg h-10 w-10 bg-[#234833] text-white hover:bg-[#2d5c41] transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">notifications</span>
+                    </button>
+                </div>
+                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/30"
+                    data-alt="Coach profile picture"
+                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCpsEfjWCciCTRbkbdoS9zaeTNFWU-jJf_mlH8owCt1ElqM-0ISExUXPWfjCVkXu3yeJEuWV-i1Feg12nH5Q2UjpHCo3Atbsxh692CfX43YeGXCHWKGKXyWcNKQmiB7rp5aYhOvb2LeZQs4Ubf0yr5wC_q1XtnaxwEL_wof8sdIT5OqrJlsyZJPTCVfOU_aMXtSz1EDgYIKnZKetywo1FNNC5o0n8xLgn4eeAxuYx9_ckNWIFUsIzLJFoeqmbY22WMZA6J5mXGs98w");'>
+                </div>
+            </div>
+        </div>
+    </header>
+    <main class="max-w-[1440px] mx-auto px-6 py-6">
+        <!-- Page Heading -->
+        <div class="flex flex-wrap justify-between items-end gap-4 mb-8">
+            <div class="flex flex-col gap-2">
+                <h1 class="text-white text-4xl font-black leading-tight tracking-tight">Session Data Entry</h1>
+                <p class="text-[#92c9a9] text-lg max-w-2xl">Log training workload, intensity, and match details for your
+                    squad to optimize performance and prevent injuries.</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="/session_history"
+                    class="flex items-center justify-center rounded-lg h-11 px-5 border border-[#326748] text-white text-sm font-bold hover:bg-[#1a3324] transition-colors">
+                    <span class="material-symbols-outlined mr-2 text-sm">history</span>
+                    View Entry History
+                </a>
+            </div>
+        </div>
+        <!-- Main Content Layout -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            <!-- Left Column: Session Configuration & Form -->
+            <div class="xl:col-span-8 space-y-6">
+                <!-- Entry Mode Tabs -->
+                <div class="bg-[#1a2e22] rounded-xl p-1 inline-flex w-full sm:w-auto">
+                    <button onclick="populateTable(initialSquad)"
+                        class="px-6 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">grid_on</span>
+                        Bulk Table Entry
+                    </button>
+                </div>
+                <!-- Session Meta Info Card -->
+                <div class="bg-[#1a2e22] border border-[#234833] rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="material-symbols-outlined text-primary">info</span>
+                        <h2 class="text-white text-xl font-bold">General Session Information</h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[#92c9a9] text-xs font-bold uppercase tracking-wider">Training
+                                Date</label>
+                            <input
+                                class="bg-[#102218] border border-[#234833] rounded-lg text-white px-4 py-3 focus:ring-primary focus:border-primary"
+                                type="date" value="2023-10-27" />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[#92c9a9] text-xs font-bold uppercase tracking-wider">Session
+                                Type</label>
+                            <select id="session-type-select"
+                                class="bg-[#102218] border border-[#234833] rounded-lg text-white px-4 py-3 focus:ring-primary focus:border-primary">
+                                <option value="technical">Technical &amp; Tactical</option>
+                                <option value="match">Match Details</option>
+                            </select>
+                        </div>
+
+                    </div>
+                </div>
+                <!-- Bulk Entry Table Card -->
+                <div class="bg-[#1a2e22] border border-[#234833] rounded-xl overflow-hidden">
+                    <div class="px-6 py-4 border-b border-[#234833] flex justify-between items-center">
+                        <h3 class="text-white font-bold">Workload Metrics</h3>
+                            <div class="flex gap-2">
+                                <button onclick="resetTable()"
+                                    class="text-xs border border-[#326748] text-[#92c9a9] px-3 py-1.5 rounded hover:border-primary transition-colors">
+                                    Reset Table
+                                </button>
+                            </div>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-[#102218] text-[#92c9a9] text-[11px] font-bold uppercase tracking-widest border-b border-[#234833]">
+                                    <th class="px-6 py-4 w-64">Player Name</th>
+                                    <th class="px-6 py-4">Status</th>
+                                    <th id="header-1" class="px-6 py-4">Training Minutes</th>
+                                    <th id="header-2" class="px-6 py-4">Training Intensity</th>
+                                    <th id="header-3" class="px-6 py-4">Sessions per Week</th>
+                                    <th class="px-6 py-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="workload-table-body" class="divide-y divide-[#234833]">
+                                {% for player in squad %}
+                                <tr class="hover:bg-[#112218] transition-colors group" data-player-id="{{ player.player_id }}">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                                                {{ player.name[:2] }}
+                                            </div>
+                                            <span class="text-white font-medium capitalize">{{ player.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <select onchange="updateRowStatus(this)" 
+                                            class="status-select bg-{{ player.status_color }}/10 text-{{ player.status_color }} text-[10px] font-bold uppercase rounded px-2 py-1 border-none focus:ring-0 cursor-pointer">
+                                            <option value="Full Participation" {% if player.suggested_status == 'Full' %}selected{% endif %}>Full Participation</option>
+                                            <option value="Modified Training" {% if player.suggested_status == 'Modified' %}selected{% endif %}>Modified Training</option>
+                                            <option value="No Participation" {% if player.suggested_status == 'No Participation' %}selected{% endif %}>No Participation</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary" 
+                                               type="number" value="90" oninput="updateValidation()" />
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary matches-input hidden" 
+                                               type="number" value="1" oninput="updateValidation()" />
+                                        <select class="w-24 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm intensity-select" onchange="updateValidation()">
+                                            <option value="3">Low</option>
+                                            <option value="6" selected>Medium</option>
+                                            <option value="9">High</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-6 py-4 col-3">
+                                        <input class="w-full bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm" 
+                                               type="number" value="5" oninput="updateValidation()" />
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button onclick="this.closest('tr').remove()" class="text-[#92c9a9] hover:text-red-400">
+                                            <span class="material-symbols-outlined text-lg">delete</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 bg-[#102218] flex justify-center">
+                        <button onclick="addIndividualPlayer()" class="text-primary text-sm font-bold flex items-center gap-2 hover:underline">
+                            <span class="material-symbols-outlined text-base">person_add</span>
+                            Add Individual Player to Session
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Right Column: Import & Health Checks -->
+            <div class="xl:col-span-4 space-y-6">
+                <!-- Quick Import Card -->
+                <div class="bg-[#1a2e22] border border-[#234833] rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-primary">cloud_upload</span>
+                        <h3 class="text-white font-bold">Import CSV/Excel</h3>
+                    </div>
+                    <div id="upload-zone"
+                        class="border-2 border-dashed border-[#326748] rounded-xl p-8 flex flex-col items-center justify-center text-center group hover:border-primary transition-colors cursor-pointer bg-[#112218]/50">
+                        <span
+                            class="material-symbols-outlined text-4xl text-[#92c9a9] mb-3 group-hover:text-primary transition-colors">description</span>
+                        <p class="text-white text-sm font-bold mb-1">Click to upload or drag &amp; drop</p>
+
+                        <input type="file" id="csv-file-input" class="hidden" accept=".csv, .xlsx, .xls" />
+                    </div>
+
+                </div>
+                <!-- Validation & Alerts Card -->
+                <div class="bg-[#1a2e22] border border-[#234833] rounded-xl overflow-hidden">
+                    <div class="px-6 py-4 bg-[#234833]/30 border-b border-[#234833]">
+                        <h3 class="text-white font-bold flex items-center gap-2 text-sm uppercase tracking-wide">
+                            <span class="material-symbols-outlined text-sm">verified_user</span>
+                            Live Data Validation
+                        </h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div id="missing-metrics-card" class="flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            <span class="material-symbols-outlined text-red-500 text-xl">error</span>
+                            <div>
+                                <p class="text-white text-sm font-bold">Missing Metrics</p>
+                                <p id="missing-metrics-text" class="text-red-400 text-xs text-xs">All players have valid metrics.</p>
+                            </div>
+                        </div>
+                        <div id="workload-alert-card" class="flex gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg hidden">
+                            <span class="material-symbols-outlined text-yellow-500 text-xl">warning</span>
+                            <div>
+                                <p class="text-white text-sm font-bold">Workload Alert</p>
+                                <p id="workload-alert-text" class="text-yellow-500 text-xs">High workload detected for some players.</p>
+                            </div>
+                        </div>
+                        <div id="injury-alert-card" class="flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg hidden">
+                            <span class="material-symbols-outlined text-red-500 text-xl">personal_injury</span>
+                            <div>
+                                <p class="text-white text-sm font-bold">Active Injuries</p>
+                                <p id="injury-alert-text" class="text-red-400 text-xs">Some players are flagged as injured.</p>
+                            </div>
+                        </div>
+                        <div id="consistency-alert-card" class="flex gap-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg hidden">
+                            <span class="material-symbols-outlined text-orange-500 text-xl">warning_amber</span>
+                            <div>
+                                <p class="text-white text-sm font-bold">Session Inconsistency</p>
+                                <p id="consistency-alert-text" class="text-orange-400 text-xs">High intensity flagged in technical session.</p>
+                            </div>
+                        </div>
+                        <div id="availability-card" class="flex gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                            <span class="material-symbols-outlined text-primary text-xl">check_circle</span>
+                            <div>
+                                <p class="text-white text-sm font-bold">Squad Availability</p>
+                                <p id="availability-text" class="text-[#92c9a9] text-xs">0% of Squad logged for this session.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Session Summary Statistics -->
+                <div class="bg-gradient-to-br from-[#1a2e22] to-[#112218] border border-[#234833] rounded-xl p-6">
+                    <h3 class="text-white font-bold mb-4 text-sm uppercase tracking-wide">Session Statistics</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-end">
+                            <span class="text-[#92c9a9] text-xs">Average Team Intensity</span>
+                            <span id="avg-intensity-val" class="text-white font-bold text-2xl">0.0 <span
+                                    class="text-xs text-[#92c9a9] font-normal">/10</span></span>
+                        </div>
+                        <div class="w-full bg-[#234833] h-1.5 rounded-full overflow-hidden">
+                            <div id="intensity-progress-bar" class="bg-primary h-full w-[0%]"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mt-6">
+                            <div class="p-3 bg-[#112218] rounded-lg border border-[#234833]">
+                                <p class="text-[#92c9a9] text-[10px] uppercase font-bold">Total Duration</p>
+                                <p id="total-duration-val" class="text-white text-lg font-bold">0 <span
+                                        class="text-xs font-normal">min</span></p>
+                            </div>
+                            <div class="p-3 bg-[#112218] rounded-lg border border-[#234833]">
+                                <p class="text-[#92c9a9] text-[10px] uppercase font-bold">Players Active</p>
+                                <p id="active-players-val" class="text-white text-lg font-bold">0 / 0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Footer Actions -->
+        <div class="mt-8 border-t border-[#234833] pt-6 flex justify-between items-center">
+            <div class="flex items-center gap-4 text-[#92c9a9] text-sm italic">
+            </div>
+            <div class="flex gap-4">
+
+                <button id="save-session-btn"
+                    class="px-10 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-black hover:bg-[#0fd961] shadow-xl shadow-primary/20 transition-all active:scale-95">
+                    Save Session
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const sessionTypeSelect = document.getElementById('session-type-select');
+        sessionTypeSelect.onchange = () => {
+            updateHeaders();
+            updateValidation();
+        };
+
+        const header1 = document.getElementById('header-1');
+        const header2 = document.getElementById('header-2');
+        const header3 = document.getElementById('header-3');
+        const tableBody = document.getElementById('workload-table-body');
+        const fileInput = document.getElementById('csv-file-input');
+        const uploadZone = document.getElementById('upload-zone');
+
+        function updateHeaders() {
+            const selectedType = sessionTypeSelect.value;
+            if (selectedType === 'match') {
+                header1.textContent = 'Minutes Played';
+                header2.textContent = 'Matches per Week';
+                header3.style.display = 'none';
+                
+                // Toggle row elements
+                document.querySelectorAll('.col-3').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.intensity-select').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.training-minutes-input').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.match-minutes-input').forEach(el => el.style.display = 'inline-block');
+                document.querySelectorAll('.matches-input').forEach(el => el.style.display = 'inline-block');
+            } else {
+                header1.textContent = 'Training Minutes';
+                header2.textContent = 'Training Intensity';
+                header3.style.display = 'table-cell';
+                header3.textContent = 'Sessions per Week';
+                
+                // Toggle row elements
+                document.querySelectorAll('.col-3').forEach(el => el.style.display = 'table-cell');
+                document.querySelectorAll('.intensity-select').forEach(el => el.style.display = 'inline-block');
+                document.querySelectorAll('.training-minutes-input').forEach(el => el.style.display = 'inline-block');
+                document.querySelectorAll('.match-minutes-input').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.matches-input').forEach(el => el.style.display = 'none');
+            }
+        }
+
+        sessionTypeSelect.addEventListener('change', updateHeaders);
+
+        // Upload Logic
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                uploadZone.innerHTML = '<p class="text-primary text-sm font-bold">Uploading...</p>';
+                const response = await fetch('/import_training_data', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Upload failed');
+                }
+                
+                const data = await response.json();
+                populateTable(data.players);
+                
+                uploadZone.innerHTML = `
+                    <span class="material-symbols-outlined text-4xl text-primary mb-3">check_circle</span>
+                    <p class="text-white text-sm font-bold mb-1">Imported Successfully</p>
+                    <p class="text-[#92c9a9] text-xs">${file.name}</p>
+                `;
+            } catch (error) {
+                console.error(error);
+                uploadZone.innerHTML = `
+                    <span class="material-symbols-outlined text-4xl text-red-500 mb-3">error</span>
+                    <p class="text-white text-sm font-bold mb-1">Upload Error</p>
+                    <p class="text-[#92c9a9] text-xs px-4">${error.message}</p>
+                `;
+            }
+        }
+
+        function populateTable(players) {
+            tableBody.innerHTML = '';
+            if (players && Array.isArray(players)) {
+                players.forEach(player => {
+                    const name = player.name || player.username || "Unknown";
+                    const status = player.suggested_status || "Full";
+                    const color = player.status_color || "primary";
+                    const id = player.player_id || null;
+                    
+                    addPlayerRow(name, status, color, id, player);
+                });
+            }
+            updateHeaders();
+            updateValidation();
+        }
+
+        // Save Session Logic
+        const saveBtn = document.getElementById('save-session-btn');
+        const sessionDateInput = document.querySelector('input[type="date"]');
+
+        saveBtn.addEventListener('click', saveSession);
+
+        // Initialize squad data for reset
+        const squadDataStr = '{{ squad | tojson | safe }}';
+        const initialSquad = JSON.parse(squadDataStr);
+
+        function resetTable() {
+            tableBody.innerHTML = '';
+            updateHeaders();
+            updateValidation();
+        }
+
+        function addIndividualPlayer() {
+            const name = prompt("Enter Player Name:");
+            if (name) {
+                addPlayerRow(name, 'Full', 'primary', null);
+                updateHeaders();
+                updateValidation();
+            }
+        }
+
+        function addPlayerRow(name, status, color, id, metrics = null) {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-[#112218] transition-colors group';
+            if (id) row.setAttribute('data-player-id', id);
+            
+            // Separate metrics for independent storage
+            const trMinutes = metrics ? (metrics.minutes || metrics.duration || '') : '';
+            const matchMinutes = metrics ? (metrics.minutes_played || '') : '';
+            const intensity = metrics ? (metrics.intensity || metrics.rpe || 6) : 6;
+            const frequency = metrics ? (metrics.frequency || metrics.sessions || '') : '';
+            const matches = metrics ? (metrics.matches || '') : '';
+
+            row.innerHTML = `
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                            ${name ? name.substring(0, 2) : '??'}
+                        </div>
+                        <span class="text-white font-medium capitalize">${name}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <select onchange="updateRowStatus(this)" 
+                        class="status-select bg-${color === 'primary' ? 'primary/10' : color + '/10'} text-${color === 'primary' ? 'primary' : color} text-[10px] font-bold uppercase rounded px-2 py-1 border-none focus:ring-0 cursor-pointer">
+                        <option value="Full Participation" ${status === 'Full' || status === 'Full Participation' ? 'selected' : ''}>Full Participation</option>
+                        <option value="Modified Training" ${status === 'Modified' || status === 'Modified Training' ? 'selected' : ''}>Modified Training</option>
+                        <option value="No Participation" ${status === 'No Participation' ? 'selected' : ''}>No Participation</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4">
+                    <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary training-minutes-input" 
+                           type="number" value="${trMinutes}" placeholder="0" oninput="updateValidation()" />
+                    <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary match-minutes-input hidden" 
+                           type="number" value="${matchMinutes}" placeholder="0" oninput="updateValidation()" />
+                </td>
+                <td class="px-6 py-4">
+                    <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary matches-input hidden" 
+                           type="number" value="${matches}" placeholder="0" oninput="updateValidation()" />
+                    <select class="w-24 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm intensity-select" onchange="updateValidation()">
+                        <option value="3" ${intensity <= 4 ? 'selected' : ''}>Low</option>
+                        <option value="6" ${(intensity > 4 && intensity <= 7) || !intensity ? 'selected' : ''}>Medium</option>
+                        <option value="9" ${intensity > 7 ? 'selected' : ''}>High</option>
+                    </select>
+                </td>
+                <td class="px-6 py-4 col-3">
+                    <input class="w-full bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm frequency-input" 
+                           type="number" value="${frequency}" placeholder="0" oninput="updateValidation()" />
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <button onclick="this.closest('tr').remove(); updateValidation();" class="text-[#92c9a9] hover:text-red-400">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        }
+
+        function updateValidation() {
+            const rows = tableBody.querySelectorAll('tr');
+            const totalPlayers = initialSquad.length || rows.length; // Fallback to rows.length if initialSquad is empty
+            const playerCount = rows.length;
+            const sessionType = sessionTypeSelect.value;
+            
+            let missingCount = 0;
+            let highWorkloadCount = 0;
+            let injuredCount = 0;
+            let consistencyIssue = false;
+            const namesInTable = new Set();
+            let duplicatesCount = 0;
+
+            let activePlayersCount = 0;
+            let totalDuration = 0;
+            let totalIntensitySum = 0;
+            let rowCountWithIntensity = 0;
+
+            rows.forEach(row => {
+                const name = row.querySelector('.font-medium').textContent.toLowerCase();
+                const trMinutes = parseInt(row.querySelector('.training-minutes-input').value) || 0;
+                const matchMinutes = parseInt(row.querySelector('.match-minutes-input').value) || 0;
+                const matchesInput = row.querySelector('.matches-input');
+                const matches = matchesInput ? (parseInt(matchesInput.value) || 0) : 0;
+                const intensitySelect = row.querySelector('.intensity-select');
+                const intensity = intensitySelect ? (parseInt(intensitySelect.value) || 0) : 6; // Default to 6 if visible
+                const frequencyInput = row.querySelector('.frequency-input');
+                const frequency = frequencyInput ? (parseInt(frequencyInput.value) || 0) : 0;
+                const statusSelect = row.querySelector('.status-select');
+                const status = statusSelect ? statusSelect.value : 'Full';
+                
+                // Statistics ONLY consider Tactical/Technical data
+                totalDuration += trMinutes * (frequency || 1);
+                
+                if (status !== 'No Participation') {
+                    activePlayersCount++;
+                }
+                
+                // Calculate intensity ONLY from Tactical data
+                totalIntensitySum += intensity;
+                rowCountWithIntensity++;
+
+                // Missing metrics check based on active mode
+                if (status === 'Full Participation') {
+                    if (sessionType === 'match') {
+                        if (matchMinutes === 0 || matches === 0) {
+                            missingCount++;
+                        }
+                    } else {
+                        if (trMinutes === 0 || frequency === 0) {
+                            missingCount++;
+                        }
+                    }
+                }
+
+                // Workload alert
+                if (intensity > 7) {
+                    highWorkloadCount++;
+                    if (sessionType === 'technical') {
+                        consistencyIssue = true;
+                    }
+                }
+
+                // Injury check
+                if (status === 'No Participation') {
+                    injuredCount++;
+                }
+
+                // Duplicate check
+                if (namesInTable.has(name)) {
+                    duplicatesCount++;
+                }
+                namesInTable.add(name);
+            });
+
+            // Update Session Statistics
+            const avgIntensityVal = document.getElementById('avg-intensity-val');
+            const intensityProgressBar = document.getElementById('intensity-progress-bar');
+            const totalDurationVal = document.getElementById('total-duration-val');
+            const activePlayersVal = document.getElementById('active-players-val');
+
+            let avgIntensity = 0;
+            if (rowCountWithIntensity > 0) {
+                avgIntensity = (totalIntensitySum / rowCountWithIntensity).toFixed(1);
+            }
+            
+            avgIntensityVal.innerHTML = `${avgIntensity} <span class="text-xs text-[#92c9a9] font-normal">/10</span>`;
+            intensityProgressBar.style.width = `${(avgIntensity / 10) * 100}%`;
+            totalDurationVal.innerHTML = `${totalDuration.toLocaleString()} <span class="text-xs font-normal">min</span>`;
+            activePlayersVal.textContent = `${activePlayersCount} / ${playerCount}`;
+
+            // Update Missing Metrics
+            const missingText = document.getElementById('missing-metrics-text');
+            const missingCard = document.getElementById('missing-metrics-card');
+            const missingIcon = missingCard.querySelector('.material-symbols-outlined');
+
+            if (missingCount > 0) {
+                missingText.textContent = `${missingCount} players have incomplete metrics.`;
+                missingText.className = "text-red-400 text-xs";
+                missingCard.classList.remove('opacity-50');
+                missingCard.className = "flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg";
+                missingIcon.textContent = 'error';
+                missingIcon.className = "material-symbols-outlined text-red-500 text-xl";
+            } else {
+                missingText.textContent = playerCount > 0 ? `All ${playerCount} players have valid metrics.` : "No data entered yet.";
+                missingText.className = "text-[#92c9a9] text-xs";
+                missingCard.classList.add('opacity-50');
+                missingCard.className = "flex gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg opacity-50";
+                missingIcon.textContent = 'check_circle';
+                missingIcon.className = "material-symbols-outlined text-primary text-xl";
+            }
+
+            // Update Workload Alert
+            const workloadText = document.getElementById('workload-alert-text');
+            const workloadCard = document.getElementById('workload-alert-card');
+            if (highWorkloadCount > 0) {
+                workloadText.textContent = `${highWorkloadCount} players have high intensity results.`;
+                workloadCard.classList.remove('hidden');
+            } else {
+                workloadCard.classList.add('hidden');
+            }
+
+            // Update Injury Alert
+            const injuryText = document.getElementById('injury-alert-text');
+            const injuryCard = document.getElementById('injury-alert-card');
+            if (injuredCount > 0) {
+                injuryText.textContent = `${injuredCount} players flagged as 'No Participation' (Injured).`;
+                injuryCard.classList.remove('hidden');
+            } else {
+                injuryCard.classList.add('hidden');
+            }
+
+            // Update Consistency Alert
+            const consistencyCard = document.getElementById('consistency-alert-card');
+            if (consistencyIssue) {
+                consistencyCard.classList.remove('hidden');
+            } else {
+                consistencyCard.classList.add('hidden');
+            }
+
+            // Update Availability
+            const availabilityText = document.getElementById('availability-text');
+            const availabilityPct = totalPlayers > 0 ? Math.round((playerCount / totalPlayers) * 100) : 0;
+            availabilityText.textContent = `${availabilityPct}% of Squad logged for this session.`;
+
+            // Duplicates warning
+            if (duplicatesCount > 0) {
+                missingText.textContent += ` (${duplicatesCount} duplicate entries found)`;
+            }
+        }
+
+        function updateRowStatus(select) {
+            const val = select.value;
+            select.classList.remove('bg-primary/10', 'text-primary', 'bg-yellow-500/10', 'text-yellow-500', 'bg-red-500/10', 'text-red-500');
+            
+            if (val === 'Full Participation') {
+                select.classList.add('bg-primary/10', 'text-primary');
+            } else if (val === 'Modified Training') {
+                select.classList.add('bg-yellow-500/10', 'text-yellow-500');
+            } else {
+                select.classList.add('bg-red-500/10', 'text-red-500');
+            }
+            updateValidation();
+        }
+
+        async function saveSession() {
+            const rows = tableBody.querySelectorAll('tr');
+            const sessionData = {
+                date: sessionDateInput.value,
+                type: sessionTypeSelect.options[sessionTypeSelect.selectedIndex].text,
+                players: []
+            };
+
+            rows.forEach(row => {
+                const name = row.querySelector('.font-medium').textContent;
+                const playerId = row.getAttribute('data-player-id');
+                const statusSelect = row.querySelector('.status-select');
+                
+                // Collect ALL available data from the row
+                const trMinutes = row.querySelector('.training-minutes-input').value;
+                const intensity = row.querySelector('.intensity-select').value;
+                const frequency = row.querySelector('.frequency-input').value;
+                
+                const matchMinutes = row.querySelector('.match-minutes-input').value;
+                const matches = row.querySelector('.matches-input').value;
+
+                sessionData.players.push({
+                    player_id: playerId,
+                    name: name,
+                    status: statusSelect.value,
+                    training: {
+                        minutes: trMinutes,
+                        intensity: intensity,
+                        frequency: frequency
+                    },
+                    match: {
+                        minutes: matchMinutes,
+                        matches: matches
+                    }
+                });
+            });
+
+            try {
+                saveBtn.textContent = 'Saving...';
+                saveBtn.disabled = true;
+                
+                const response = await fetch('/save_session_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sessionData)
+                });
+
+                if (!response.ok) throw new Error('Save failed');
+
+                saveBtn.classList.remove('bg-primary');
+                saveBtn.classList.add('bg-blue-500');
+                saveBtn.textContent = 'Saved!';
+                
+                setTimeout(() => {
+                    saveBtn.classList.remove('bg-blue-500');
+                    saveBtn.classList.add('bg-primary');
+                    saveBtn.textContent = 'Save Session';
+                    saveBtn.disabled = false;
+                }, 3000);
+
+            } catch (error) {
+                console.error(error);
+                saveBtn.textContent = 'Error Saving';
+                saveBtn.classList.add('bg-red-500');
+                setTimeout(() => {
+                    saveBtn.classList.remove('bg-red-500');
+                    saveBtn.textContent = 'Save Session';
+                    saveBtn.disabled = false;
+                }, 3000);
+            }
+        }
+
+        // Initial run
+        updateHeaders();
+        updateValidation();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Individual Player Risk Analysis | SmartInjury Pro</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                        "card-dark": "#1a2e23",
+                        "border-dark": "#234833"
+                    },
+                    fontFamily: {
+                        "display": ["Lexend"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .fill-primary {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <aside
+            class="w-64 flex-shrink-0 bg-background-light dark:bg-background-dark border-r border-slate-200 dark:border-border-dark flex flex-col justify-between p-4 overflow-y-auto">
+            <div class="flex flex-col gap-8">
+                <div class="flex items-center gap-3">
+                    <div class="bg-primary rounded-lg p-1">
+                        <span class="material-symbols-outlined text-background-dark"
+                            style="font-size: 28px;">monitoring</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <h1 class="text-slate-900 dark:text-white text-base font-bold leading-tight">PLAYFIT FC</h1>
+                        <p class="text-slate-500 dark:text-[#92c9a9] text-xs font-normal">Elite Performance Center</p>
+                    </div>
+                </div>
+                <nav class="flex flex-col gap-1">
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-card-dark rounded-lg transition-colors"
+                        href="/dashboard">
+                        <span class="material-symbols-outlined text-[24px]">dashboard</span>
+                        <span class="text-sm font-medium">Dashboard</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/20"
+                        href="/player_management">
+                        <span class="material-symbols-outlined text-[24px]">groups</span>
+                        <span class="text-sm font-medium">Player Management</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-card-dark rounded-lg transition-colors"
+                        href="/data_entry">
+                        <span class="material-symbols-outlined text-[24px]">history</span>
+                        <span class="text-sm font-medium">Data Entry</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-card-dark rounded-lg transition-colors"
+                        href="/analytics">
+                        <span class="material-symbols-outlined text-[24px]">assessment</span>
+                        <span class="text-sm font-medium">Reports</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 dark:text-red-400 hover:bg-red-500/10 transition-colors mt-4"
+                        href="/signout">
+                        <span class="material-symbols-outlined text-[24px]">logout</span>
+                        <span class="text-sm font-medium">Sign Out</span>
+                    </a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-3 p-2 bg-slate-100 dark:bg-card-dark rounded-xl">
+                <div class="size-10 rounded-full bg-cover bg-center border border-primary/30"
+                    data-alt="User profile avatar of head coach"
+                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCTGiL0SPi2-X-_t670jzY9CFRAsCO7a9eLEz4eLuIxdKONK4lZXdpE6uxZiFkPpnxb92rNZB8PyzGJ6IU97apxhRbP0Xix7eD1Gwm1Tv8riQMKjYKToN_ctbs7RS02KvvPmrK8ffq6eD4w30BIM_XM9EBJb3Fqgj7CBjKwRnhPAXrt_0mQGXsnOfsqHRtAP4vBgjd9dgQfaymU5DwgdnNpgyYOOjXTMliSDv0G3mNpzaEvtbv_bbTJ7qvX9AyUHp1wVhHRDhI0TLE")'>
+                </div>
+                <div class="flex flex-col">
+                    <p class="text-xs font-bold text-slate-900 dark:text-white">Coach {{ user.username.split('@')[0] |
+                        capitalize }}</p>
+                    <p class="text-[10px] text-slate-500 dark:text-[#92c9a9]">Head of Performance</p>
+                </div>
+            </div>
+        </aside>
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-background-light dark:bg-background-dark">
+            <!-- Header -->
+            <header
+                class="flex items-center justify-between border-b border-slate-200 dark:border-border-dark px-8 py-4 bg-white dark:bg-background-dark/50 backdrop-blur-sm z-10">
+                <div class="flex flex-col">
+                    <h2 class="text-slate-900 dark:text-white text-xl font-bold tracking-tight">Player Management</h2>
+                </div>
+                {% if team_players %}
+                <div class="flex items-center gap-4">
+                    <form action="/player_management" method="GET">
+                        <select name="player_id" onchange="this.form.submit()" class="bg-slate-50 dark:bg-card-dark border border-slate-200 dark:border-border-dark text-slate-700 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-48 p-2.5 outline-none">
+                            {% for p in team_players %}
+                                <option value="{{ p.player_id }}" {% if selected_player and p.player_id == selected_player.player_id %}selected{% endif %}>{{ p.username.split('@')[0] | capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                {% endif %}
+            </header>
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-8 space-y-8">
+                <!-- Profile Header Card -->
+                <div
+                    class="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-border-dark p-6 shadow-sm">
+                    <div class="flex flex-col lg:flex-row gap-8 items-start lg:items-center">
+                        <div class="relative">
+                            <div class="size-32 rounded-full bg-cover bg-center border-4 border-amber-500/30"
+                                data-alt="Portrait photo of Marcus Thompson"
+                                style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA9rU_HmYBoUAQh7utmK0fgZgFIR_VANPq00PloHACVigtZJAQRr_5YqzRUQIn_X4X3Yad8eE963956fXtHgW7-lJWFhzKvY--bBQr7z3YvwKIwAchhhnfHv0kXUpVR9oliMH0jlQEDdixbJHpSAMT0CP_dZDpIyxFxKuZVusCHqH1d6UP8xszAGZoC3t58jO_5zbpEU05ZxzYkFW9OUcS-fxcpKgGaPY1yzVe8-rpa0WYhhWDb8YndlwxbcTr0i4HntoR4dI9mIkw")'>
+                            </div>
+                        </div>
+                        <div class="flex-1 space-y-2">
+                            <div class="flex items-center gap-3">
+                                <h3 class="text-3xl font-bold text-slate-900 dark:text-white">{% if selected_player %}{{ selected_player.username.split('@')[0] | capitalize }}{% else %}No Player{% endif %}</h3>
+                                {% if prediction %}
+                                <span class="px-3 py-1 text-xs font-bold rounded-full border uppercase
+                                    {% if prediction.risk_level == 'High' %}bg-red-500/10 text-red-500 border-red-500/20
+                                    {% elif prediction.risk_level == 'Medium' %}bg-amber-500/10 text-amber-500 border-amber-500/20
+                                    {% else %}bg-primary/10 text-primary border-primary/20{% endif %}">
+                                    {{ prediction.risk_level }} RISK
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-slate-500 dark:text-[#92c9a9] font-medium">{% if selected_player %}{{ selected_player.position or 'Position Unknown' }}{% endif %} • PlayFit FC</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end w-full lg:w-auto">
+                    </div>
+                </div>
+                <!-- Risk Factor Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- ACWR Card -->
+                    <div
+                        class="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-tight">Workload
+                                Ratio</span>
+                            <span class="material-symbols-outlined text-amber-500">trending_up</span>
+                        </div>
+                        <div class="mt-4">
+                            <div class="text-2xl font-bold text-slate-900 dark:text-white">{{ acwr }}</div>
+                            <p class="text-xs {% if acwr > 1.3 %}text-red-500{% elif acwr < 0.8 %}text-amber-500{% else %}text-primary{% endif %} font-medium">
+                                {% if acwr > 1.3 %}Above optimal range (0.8 - 1.3){% elif acwr < 0.8 %}Below optimal range (0.8 - 1.3){% else %}Optimal range (0.8 - 1.3){% endif %}
+                            </p>
+                        </div>
+                        <div class="mt-4 h-1 w-full bg-slate-100 dark:bg-border-dark rounded-full overflow-hidden">
+                            <div class="h-full {% if acwr > 1.3 %}bg-red-500{% elif acwr < 0.8 %}bg-amber-500{% else %}bg-primary{% endif %} w-[{{ (acwr / 2.0) * 100 }}%]"></div>
+                        </div>
+                    </div>
+                    <!-- Sleep Card -->
+                    <div
+                        class="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-tight">Wellness:
+                                Sleep</span>
+                            <span class="material-symbols-outlined text-rose-500">bedtime</span>
+                        </div>
+                        <div class="mt-4">
+                            <div class="text-2xl font-bold text-slate-900 dark:text-white capitalize">{{ sleep_data }}</div>
+                            <p class="text-xs {% if sleep_data == 'Poor' %}text-rose-500{% elif sleep_data == 'Average' %}text-amber-500{% else %}text-primary{% endif %} font-medium">Quality Rating</p>
+                        </div>
+                        <div class="mt-4 h-1 w-full bg-slate-100 dark:bg-border-dark rounded-full overflow-hidden">
+                            <div class="h-full {% if sleep_data == 'Poor' %}bg-rose-500 w-[30%]{% elif sleep_data == 'Average' %}bg-amber-500 w-[60%]{% else %}bg-primary w-[90%]{% endif %}"></div>
+                        </div>
+                    </div>
+                    <!-- Stress Card -->
+                    <div
+                        class="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl flex flex-col justify-between">
+                        <div class="flex justify-between items-start">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-tight">Muscle
+                                Soreness</span>
+                            <span class="material-symbols-outlined text-primary">fitness_center</span>
+                        </div>
+                        <div class="mt-4">
+                            <div class="text-2xl font-bold text-slate-900 dark:text-white capitalize">{{ soreness_data }}</div>
+                            <p class="text-xs text-slate-500 dark:text-[#92c9a9] font-medium">Self-Reported</p>
+                        </div>
+                        <div class="mt-4 h-1 w-full bg-slate-100 dark:bg-border-dark rounded-full overflow-hidden">
+                            <div class="h-full {% if soreness_data == 'High' %}bg-rose-500 w-[90%]{% elif soreness_data == 'Medium' %}bg-amber-500 w-[60%]{% else %}bg-primary w-[30%]{% endif %}"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Chart and Prediction Logic -->
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <!-- Comparison Chart Placeholder -->
+                    <div
+                        class="xl:col-span-2 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h4 class="text-lg font-bold text-slate-900 dark:text-white">Workload Trends</h4>
+                            <div class="flex gap-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="size-2 rounded-full bg-primary"></div>
+                                    <span class="text-[10px] font-bold uppercase text-slate-400">Acute Load</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="size-2 rounded-full bg-slate-600"></div>
+                                    <span class="text-[10px] font-bold uppercase text-slate-400">Chronic Load</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Mock Chart Visualization -->
+                        <div
+                            class="relative h-[280px] w-full flex items-end justify-between gap-2 border-b border-l border-slate-200 dark:border-border-dark pb-1 pl-1">
+                            <!-- Chronic Background area placeholder -->
+                            <div
+                                class="absolute inset-0 bg-gradient-to-t from-slate-200/20 to-transparent dark:from-slate-800/20 dark:to-transparent opacity-50">
+                            </div>
+                            <!-- Columns represent days of the week -->
+                            {% for day in chart_data %}
+                            <div class="flex flex-col items-center justify-end h-full w-full group">
+                                <div class="w-full bg-slate-600/30 rounded-t-sm relative" style="--chronic-h: {{ day.chronic_height }}; height: var(--chronic-h);">
+                                    <div class="absolute bottom-0 w-full rounded-t-sm transition-all
+                                        {% if day.is_danger %}
+                                            bg-red-400 border-2 border-red-500/80
+                                        {% else %}
+                                            bg-primary group-hover:bg-primary/80
+                                        {% endif %}" 
+                                        style="--acute-h: {{ day.acute_height }}; height: var(--acute-h);">
+                                    </div>
+                                </div>
+                                <span class="text-[10px] {% if day.is_danger %}font-bold text-red-400{% else %}text-slate-400{% endif %} mt-2">{{ day.label }}</span>
+                            </div>
+                            {% else %}
+                            <div class="w-full h-full flex items-center justify-center">
+                                <span class="text-sm text-slate-500">Not enough training data</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <!-- Predictive Logic Panel -->
+                    <div
+                        class="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl p-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="material-symbols-outlined text-primary">psychology</span>
+                            <h4 class="text-lg font-bold text-slate-900 dark:text-white">Predictive Logic</h4>
+                        </div>
+                        <div class="space-y-4">
+                            <div
+                                class="p-3 bg-slate-50 dark:bg-background-dark/50 rounded-lg border-l-4 border-amber-500">
+                                <p class="text-sm font-bold text-slate-900 dark:text-white mb-1">System Warning Meaning</p>
+                                <p class="text-xs text-slate-600 dark:text-[#92c9a9] leading-relaxed">
+                                    {{ predictive_logic.warning }}
+                                </p>
+                                <div class="mt-2 space-y-1">
+                                    <p class="text-[10px] font-bold uppercase text-slate-400">Interpretation:</p>
+                                    <ul class="list-disc list-inside text-[11px] text-slate-500 dark:text-[#92c9a9]">
+                                        {% for item in predictive_logic.interpretation %}
+                                            <li>{{ item }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">🔎 Contributing Factors Explained</p>
+                                <ul class="space-y-3">
+                                    {% for factor in predictive_logic.factors %}
+                                    <li class="flex flex-col gap-1">
+                                        <div class="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
+                                            <span class="material-symbols-outlined text-{{ factor.color }}" style="font-size: 16px;">{{ factor.icon }}</span>
+                                            <span>{{ factor.label }}</span>
+                                        </div>
+                                        <p class="text-[10px] text-slate-500 dark:text-[#92c9a9] ml-6">{{ factor.desc }}</p>
+                                        <p class="text-[10px] text-rose-400 ml-6 italic">Risk: {{ factor.risk }}</p>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 dark:border-border-dark">
+                                <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">🎯 System Recommendation</p>
+                                <div class="flex flex-wrap gap-2">
+                                    {% for action in predictive_logic.actions %}
+                                        <span class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-md">{{ action }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Action Plan Section -->
+                <form action="{{ url_for('notify_player') }}" method="POST" class="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl p-6">
+                    <input type="hidden" name="player_id" value="{{ selected_player.player_id if selected_player else '' }}">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <div>
+                            <h4 class="text-lg font-bold text-slate-900 dark:text-white">Preventive Action Plan</h4>
+                            <p class="text-sm text-slate-500 dark:text-[#92c9a9]">Recommended interventions based on
+                                real-time data</p>
+                        </div>
+                        <button type="submit"
+                            class="w-full md:w-auto bg-primary text-background-dark font-bold px-6 py-2.5 rounded-lg flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined">event_busy</span>
+                            Log Mandatory Rest Day
+                        </button>
+                    </div>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="mb-4 p-4 rounded-lg text-sm font-medium {% if category == 'success' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300{% else %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300{% endif %}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Action 1 -->
+                        <div
+                            class="flex items-center justify-between p-4 bg-slate-50 dark:bg-background-dark rounded-lg border border-slate-200 dark:border-border-dark">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-primary/10 rounded-lg">
+                                    <span class="material-symbols-outlined text-primary">directions_run</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold">Reduce Intensity</span>
+                                    <span class="text-[10px] text-slate-400">Limit max speed to 80%</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input name="action_reduce_intensity" value="true" class="sr-only peer" type="checkbox" />
+                                <div
+                                    class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-border-dark peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary">
+                                </div>
+                            </label>
+                        </div>
+                        <!-- Action 2 -->
+                        <div
+                            class="flex items-center justify-between p-4 bg-slate-50 dark:bg-background-dark rounded-lg border border-slate-200 dark:border-border-dark">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-primary/10 rounded-lg">
+                                    <span class="material-symbols-outlined text-primary">spa</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold">Contrast Therapy</span>
+                                    <span class="text-[10px] text-slate-400">Post-training recovery</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input name="action_contrast_therapy" value="true" class="sr-only peer" type="checkbox" />
+                                <div
+                                    class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-border-dark peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary">
+                                </div>
+                            </label>
+                        </div>
+                        <!-- Action 3 -->
+                        <div
+                            class="flex items-center justify-between p-4 bg-slate-50 dark:bg-background-dark rounded-lg border border-slate-200 dark:border-border-dark">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-slate-200 dark:bg-border-dark rounded-lg">
+                                    <span class="material-symbols-outlined text-slate-400">psychology_alt</span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold">Sleep Consultation</span>
+                                    <span class="text-[10px] text-slate-400">Address persistent fatigue</span>
+                                </div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input name="action_sleep_consultation" value="true" class="sr-only peer" type="checkbox" />
+                                <div
+                                    class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-border-dark peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary">
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

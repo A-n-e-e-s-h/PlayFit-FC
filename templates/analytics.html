@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Team Analytics &amp; Reports | PLAYFIT FC</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;display=swap" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .chart-grid {
+            background-image: radial-gradient(circle, #234833 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display min-h-screen flex flex-col">
+    <!-- Top Navigation Bar -->
+    <header
+        class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-[#234833] bg-background-light dark:bg-background-dark px-10 py-3 sticky top-0 z-50">
+        <div class="flex items-center gap-8">
+            <div class="flex items-center gap-4 text-slate-900 dark:text-white">
+                <div class="size-6 text-primary">
+                    <svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                        <g clip-path="url(#clip0_6_535)">
+                            <path clip-rule="evenodd"
+                                d="M47.2426 24L24 47.2426L0.757355 24L24 0.757355L47.2426 24ZM12.2426 21H35.7574L24 9.24264L12.2426 21Z"
+                                fill="currentColor" fill-rule="evenodd"></path>
+                        </g>
+                        <defs>
+                            <clippath id="clip0_6_535">
+                                <rect fill="white" height="48" width="48"></rect>
+                            </clippath>
+                        </defs>
+                    </svg>
+                </div>
+                <h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">PLAYFIT FC</h2>
+            </div>
+
+        </div>
+        <div class="flex flex-1 justify-end gap-8">
+            <nav class="flex items-center gap-9">
+                <a class="text-slate-600 dark:text-white text-sm font-medium hover:text-primary transition-colors"
+                    href="/dashboard">Dashboard</a>
+                <a class="text-slate-600 dark:text-white text-sm font-medium hover:text-primary transition-colors"
+                    href="/player_management">Players</a>
+                <a class="text-slate-600 dark:text-white text-sm font-medium hover:text-primary transition-colors"
+                    href="/data_entry">Data Entry</a>
+                <a class="text-primary text-sm font-bold border-b-2 border-primary pb-1" href="/analytics">Reports</a>
+                <a class="text-red-500 hover:text-red-400 text-sm font-medium transition-colors ml-4"
+                    href="/signout">Sign Out</a>
+            </nav>
+            <div class="flex items-center gap-4">
+                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary"
+                    data-alt="User profile picture of a coach"
+                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBgq_CN2ADZdtm68TVtTN2F2Ows1Dv8nH9EFwyu7MMIEflaUi67Q3huHfFRbklbfEVrbJg_Wx7YPN2jE8uNUHoLaJS5suhkgg5yBuejZOrHAR-XB7ajZfNqWJqW4YW_J7jXNiU6g2y29z6KYyj3K7BeCa7MvPeCB_eQTrUZ55qFkJCoY8xq5phWIvbJviQ1JgmpBkYPkX_SYkvox5DtFkB0HkUKfOfVhDL83xSBoM9B4bCEHfaQi0EmFwCefrk743baXKiI2FxF790");'>
+                </div>
+            </div>
+        </div>
+    </header>
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-10 py-8">
+        <!-- Page Heading -->
+        <div class="flex flex-wrap justify-between items-end gap-3 pb-8">
+            <div class="flex min-w-72 flex-col gap-2">
+                <p class="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Team
+                    Analytics & Reports</p>
+                <p class="text-slate-500 dark:text-[#92c9a9] text-base font-normal leading-normal">Real-time injury risk
+                    assessment and fatigue correlation dashboard.</p>
+            </div>
+            <div class="flex gap-3">
+            </div>
+        </div>
+        <!-- Metric Tiles -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
+                <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Avg. Squad Risk</p>
+                <div class="flex items-end gap-2 mt-2">
+                    <p class="text-3xl font-black text-primary">24%</p>
+                    <span class="text-xs text-red-400 mb-1 flex items-center">
+                        <span class="material-symbols-outlined text-xs">arrow_upward</span> 3%
+                    </span>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
+                <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Active Injuries</p>
+                <div class="flex items-end gap-2 mt-2">
+                    <p class="text-3xl font-black text-slate-900 dark:text-white">4</p>
+                    <span class="text-xs text-primary mb-1 flex items-center">
+                        <span class="material-symbols-outlined text-xs">arrow_downward</span> 2
+                    </span>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
+                <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">High Risk Players</p>
+                <div class="flex items-end gap-2 mt-2">
+                    <p class="text-3xl font-black text-orange-400">3</p>
+                    <span class="text-xs text-slate-400 mb-1">Stability</span>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
+                <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Recovery Timeline</p>
+                <div class="flex items-end gap-2 mt-2">
+                    <p class="text-3xl font-black text-slate-900 dark:text-white">12.4 d</p>
+                    <span class="text-xs text-slate-400 mb-1">Avg. Return</span>
+                </div>
+            </div>
+        </div>
+        <!-- Filter & Tabs Bar -->
+        <div
+            class="bg-white dark:bg-[#152a1e] rounded-xl border border-slate-200 dark:border-[#234833] mb-8 overflow-hidden">
+            <div
+                class="flex flex-col lg:flex-row lg:items-center justify-between px-6 border-b border-slate-100 dark:border-[#234833]">
+                <div class="flex gap-8 overflow-x-auto no-scrollbar">
+                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-primary pb-3 pt-4"
+                        href="#">
+                        <p class="text-sm font-bold whitespace-nowrap">All Squads</p>
+                    </a>
+                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-slate-500 dark:text-[#92c9a9] hover:text-white pb-3 pt-4 transition-colors"
+                        href="#">
+                        <p class="text-sm font-bold whitespace-nowrap">First Team</p>
+                    </a>
+                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-slate-500 dark:text-[#92c9a9] hover:text-white pb-3 pt-4 transition-colors"
+                        href="#">
+                        <p class="text-sm font-bold whitespace-nowrap">U21</p>
+                    </a>
+                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-slate-500 dark:text-[#92c9a9] hover:text-white pb-3 pt-4 transition-colors"
+                        href="#">
+                        <p class="text-sm font-bold whitespace-nowrap">Academy</p>
+                    </a>
+                </div>
+                <div class="flex items-center gap-2 py-3 lg:py-0">
+                    <button class="p-2 text-slate-400 hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined">calendar_today</span>
+                    </button>
+                    <button class="p-2 text-slate-400 hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined">group</span>
+                    </button>
+                    <button class="p-2 text-slate-400 hover:text-primary transition-colors">
+                        <span class="material-symbols-outlined">show_chart</span>
+                    </button>
+                    <div class="h-6 w-[1px] bg-slate-200 dark:bg-[#234833] mx-2"></div>
+                    <button
+                        class="flex items-center justify-center rounded-lg h-9 bg-primary px-4 text-background-dark gap-2 text-sm font-bold">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        <span>Download PDF</span>
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 flex-wrap bg-slate-50 dark:bg-transparent">
+                <button
+                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-white dark:bg-[#234833] pl-4 pr-3 hover:bg-primary/10 transition-colors">
+                    <p class="text-slate-700 dark:text-white text-sm font-medium">Last 30 Days</p>
+                    <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                </button>
+                <button
+                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-white dark:bg-[#234833] pl-4 pr-3 hover:bg-primary/10 transition-colors">
+                    <p class="text-slate-700 dark:text-white text-sm font-medium">All Positions</p>
+                    <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                </button>
+                <button
+                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-primary/20 dark:bg-primary/30 pl-4 pr-3 border-primary/50">
+                    <p class="text-primary text-sm font-bold">High Risk Only</p>
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+                <button
+                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-white dark:bg-[#234833] pl-4 pr-3 hover:bg-primary/10 transition-colors">
+                    <p class="text-slate-700 dark:text-white text-sm font-medium">Fatigue &gt; 70%</p>
+                    <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                </button>
+            </div>
+        </div>
+        <!-- Analytics Grid -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <!-- Scatter Plot Card -->
+            <div
+                class="bg-white dark:bg-[#152a1e] rounded-xl border border-slate-200 dark:border-[#234833] flex flex-col min-h-[450px]">
+                <div class="flex items-center justify-between p-6 border-b border-slate-100 dark:border-[#234833]">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">scatter_plot</span>
+                        <h3 class="text-lg font-bold">Fatigue vs. Injury History</h3>
+                        <span class="material-symbols-outlined text-slate-400 text-sm cursor-help">info</span>
+                    </div>
+                    <button class="p-2 hover:bg-slate-100 dark:hover:bg-[#234833] rounded-full text-slate-400">
+                        <span class="material-symbols-outlined">fullscreen</span>
+                    </button>
+                </div>
+                <div class="flex-1 p-6 relative chart-grid flex items-center justify-center">
+                    <!-- Placeholder Chart Visualization -->
+                    <div class="w-full h-full relative border-l border-b border-slate-300 dark:border-[#2d5c41]">
+                        <!-- Y Axis Label -->
+                        <div
+                            class="absolute -left-12 top-1/2 -rotate-90 text-[10px] uppercase tracking-widest text-slate-500 dark:text-[#92c9a9]">
+                            Past Injuries</div>
+                        <!-- X Axis Label -->
+                        <div
+                            class="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest text-slate-500 dark:text-[#92c9a9]">
+                            Fatigue Index (%)</div>
+                        <!-- Scatter Points -->
+                        <div class="absolute bottom-[20%] left-[30%] group">
+                            <div class="size-3 bg-primary rounded-full ring-4 ring-primary/20 cursor-pointer"></div>
+                            <div
+                                class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                J. Smith: F: 42%, Inj: 1
+                            </div>
+                        </div>
+                        <div class="absolute bottom-[60%] left-[80%] group">
+                            <div class="size-4 bg-red-500 rounded-full ring-4 ring-red-500/20 cursor-pointer"></div>
+                            <div
+                                class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                M. Rossi: F: 88%, Inj: 4 (CRITICAL)
+                            </div>
+                        </div>
+                        <div class="absolute bottom-[40%] left-[65%] group">
+                            <div class="size-3 bg-orange-400 rounded-full ring-4 ring-orange-400/20 cursor-pointer">
+                            </div>
+                        </div>
+                        <div class="absolute bottom-[10%] left-[15%] group">
+                            <div class="size-3 bg-primary rounded-full ring-4 ring-primary/20 cursor-pointer"></div>
+                        </div>
+                        <div class="absolute bottom-[25%] left-[50%] group">
+                            <div class="size-3 bg-primary rounded-full ring-4 ring-primary/20 cursor-pointer"></div>
+                        </div>
+                        <div class="absolute bottom-[75%] left-[45%] group">
+                            <div class="size-3 bg-orange-400 rounded-full ring-4 ring-orange-400/20 cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="p-4 bg-slate-50 dark:bg-[#112218] border-t border-slate-100 dark:border-[#234833] flex justify-between text-xs">
+                    <div class="flex items-center gap-4">
+                        <span class="flex items-center gap-1"><i class="size-2 rounded-full bg-primary"></i>
+                            Optimal</span>
+                        <span class="flex items-center gap-1"><i class="size-2 rounded-full bg-orange-400"></i>
+                            Elevated</span>
+                        <span class="flex items-center gap-1"><i class="size-2 rounded-full bg-red-500"></i> High
+                            Risk</span>
+                    </div>
+                    <span class="text-slate-500 dark:text-[#92c9a9]">Updated: 2h ago</span>
+                </div>
+            </div>
+            <!-- Risk Distribution Bar Chart -->
+            <div
+                class="bg-white dark:bg-[#152a1e] rounded-xl border border-slate-200 dark:border-[#234833] flex flex-col min-h-[450px]">
+                <div class="flex items-center justify-between p-6 border-b border-slate-100 dark:border-[#234833]">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary">bar_chart</span>
+                        <h3 class="text-lg font-bold">Risk Distribution by Position</h3>
+                        <span class="material-symbols-outlined text-slate-400 text-sm cursor-help">info</span>
+                    </div>
+                    <button class="p-2 hover:bg-slate-100 dark:hover:bg-[#234833] rounded-full text-slate-400">
+                        <span class="material-symbols-outlined">fullscreen</span>
+                    </button>
+                </div>
+                <div class="flex-1 p-8 flex flex-col justify-between">
+                    <!-- Forward -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-medium">Forwards</span>
+                            <span class="font-bold">62% Risk</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
+                            <div class="bg-orange-400 h-full" style="width: 62%"></div>
+                        </div>
+                    </div>
+                    <!-- Midfield -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-medium">Midfielders</span>
+                            <span class="font-bold">34% Risk</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
+                            <div class="bg-primary h-full" style="width: 34%"></div>
+                        </div>
+                    </div>
+                    <!-- Defense -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-medium">Defenders</span>
+                            <span class="font-bold">18% Risk</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
+                            <div class="bg-primary h-full" style="width: 18%"></div>
+                        </div>
+                    </div>
+                    <!-- Goalkeepers -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-medium">Goalkeepers</span>
+                            <span class="font-bold">12% Risk</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
+                            <div class="bg-primary h-full" style="width: 12%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 bg-primary/5 border-t border-slate-100 dark:border-[#234833]">
+                    <div class="flex gap-4 items-start">
+                        <span class="material-symbols-outlined text-primary text-xl mt-1">auto_awesome</span>
+                        <p class="text-sm text-slate-600 dark:text-[#92c9a9] italic leading-relaxed">
+                            "Defenders show a 15% increase in fatigue over the last 7 days. Correlation suggests a
+                            lighter recovery session for the defensive unit before Saturday's fixture."
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- Recent Reports List (Full Width) -->
+            <div
+                class="xl:col-span-2 bg-white dark:bg-[#152a1e] rounded-xl border border-slate-200 dark:border-[#234833] overflow-hidden">
+                <div
+                    class="px-6 py-4 border-b border-slate-100 dark:border-[#234833] flex justify-between items-center">
+                    <h3 class="font-bold">Generated Reports</h3>
+                    <button class="text-primary text-sm font-bold hover:underline">View All Archives</button>
+                </div>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="bg-slate-50 dark:bg-[#1b2e23] text-slate-500 dark:text-[#92c9a9] text-xs uppercase tracking-widest">
+                            <th class="px-6 py-3 font-semibold">Report Name</th>
+                            <th class="px-6 py-3 font-semibold">Type</th>
+                            <th class="px-6 py-3 font-semibold">Generated Date</th>
+                            <th class="px-6 py-3 font-semibold">Created By</th>
+                            <th class="px-6 py-3 font-semibold text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-[#234833]">
+                        <tr class="hover:bg-slate-50 dark:hover:bg-[#1a3526] transition-colors">
+                            <td class="px-6 py-4 font-medium">Weekly Fatigue Correlation - WK 34</td>
+                            <td class="px-6 py-4"><span
+                                    class="px-2 py-1 rounded bg-slate-100 dark:bg-[#234833] text-[10px] font-bold">PDF</span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 dark:text-[#92c9a9] text-sm">Oct 12, 2023</td>
+                            <td class="px-6 py-4 text-sm">Coach {{ user.username.split('@')[0] | capitalize }}</td>
+                            <td class="px-6 py-4 text-right">
+                                <button class="text-primary hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined">download</span>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-[#1a3526] transition-colors">
+                            <td class="px-6 py-4 font-medium">U21 Risk Distribution Matrix</td>
+                            <td class="px-6 py-4"><span
+                                    class="px-2 py-1 rounded bg-slate-100 dark:bg-[#234833] text-[10px] font-bold text-primary">CSV</span>
+                            </td>
+                            <td class="px-6 py-4 text-slate-500 dark:text-[#92c9a9] text-sm">Oct 10, 2023</td>
+                            <td class="px-6 py-4 text-sm">System Automated</td>
+                            <td class="px-6 py-4 text-right">
+                                <button class="text-primary hover:text-white transition-colors">
+                                    <span class="material-symbols-outlined">download</span>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+    <footer
+        class="mt-auto border-t border-slate-200 dark:border-[#234833] bg-background-light dark:bg-background-dark py-8 px-10">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-3 text-slate-400">
+                <span class="material-symbols-outlined text-primary">security</span>
+                <span class="text-xs">End-to-end encrypted health data for elite athletes.</span>
+            </div>
+            <div class="flex gap-6 text-xs text-slate-500 dark:text-[#92c9a9]">
+                <a class="hover:text-primary transition-colors" href="#">Privacy Protocol</a>
+                <a class="hover:text-primary transition-colors" href="#">System Health</a>
+                <a class="hover:text-primary transition-colors" href="#">API Support</a>
+                <span class="text-slate-700">© 2023 Smart Injury Systems</span>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>

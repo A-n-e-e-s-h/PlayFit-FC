@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Player Wellness &amp; Risk Portal</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;family=Noto+Sans:wght@100..900&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .chart-gradient {
+            background: linear-gradient(180deg, rgba(19, 236, 109, 0.2) 0%, rgba(19, 236, 109, 0) 100%);
+        }
+
+        .gauge-ring {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 100;
+            /* Adjusted for visual progress */
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- SideNavBar -->
+        <aside class="w-72 bg-[#112218] border-r border-white/10 flex flex-col justify-between p-6">
+            <div class="flex flex-col gap-8">
+                <div class="flex items-center gap-3">
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 border-2 border-primary/30"
+                        data-alt="Professional athlete profile picture"
+                        style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBJrSqSKSAk6qYGjAgB2gszS3qfFjPukUIXVjND6fo2c2ife8dPRd_2B9alaMUqKLbUKdhm1zJEW9ukWh2J4SoKw0M3S8kdpxh1-x9nEbX-6uZRdGlYryaK7zHngdKcBS78iULsGFlcM3MUu0hRT0kYqaQG9rtiVrD3oB_bCApntWSGM6SmBGPjpNhX3CmSq4MNtwF_XI1lcupdvuJ-6-K42n64jne2l1DXoDlaQP2Al_m5KFDAObxPD4pbGnj7J450D9xBn33gGtI");'>
+                    </div>
+                    <div class="flex flex-col">
+                        <h1 class="text-white text-base font-bold leading-tight">PLAYFIT FC</h1>
+                        <p class="text-primary text-xs font-medium uppercase tracking-wider">Player Portal</p>
+                    </div>
+                </div>
+                <nav class="flex flex-col gap-2">
+                    <a href="/dashboard"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/20 text-primary">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <p class="text-sm font-semibold">My Dashboard</p>
+                    </a>
+                    <a href="/history"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:bg-white/5 hover:text-white transition-colors cursor-pointer">
+                        <span class="material-symbols-outlined">history</span>
+                        <p class="text-sm font-medium">History</p>
+                    </a>
+                    <a href="/guide"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:bg-white/5 hover:text-white transition-colors cursor-pointer">
+                        <span class="material-symbols-outlined">shield_with_heart</span>
+                        <p class="text-sm font-medium">Prevention Guide</p>
+                    </a>
+                    <a href="/signout"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors mt-4">
+                        <span class="material-symbols-outlined">logout</span>
+                        <p class="text-sm font-medium">Sign Out</p>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+        <!-- Main Content Scroll Area -->
+        <main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark">
+            <div class="max-w-6xl mx-auto p-8 space-y-8">
+                <!-- PageHeading -->
+                <header class="flex flex-wrap justify-between items-end gap-4">
+                    <div class="flex flex-col gap-1 w-full">
+                        <div class="flex justify-between items-center w-full">
+                            <h2 class="text-slate-900 dark:text-white text-4xl font-black tracking-tight">Welcome back, {{
+                                user.username.split('@')[0] | capitalize }}</h2>
+                        </div>
+                        <p class="text-slate-500 dark:text-primary/70 text-base font-medium">Your injury risk is
+                            currently <span class="text-primary">{{ prediction.risk_level }}</span></p>
+                    </div>
+                </header>
+                
+                {% if notifications %}
+                <div class="flex flex-col gap-3">
+                    {% for notif in notifications %}
+                    <div class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-4 rounded-xl flex items-start justify-between shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined">campaign</span>
+                            <span class="font-medium text-sm">{{ notif.message }}</span>
+                        </div>
+                        <form action="{{ url_for('dismiss_notification', notif_id=notif.id) }}" method="POST">
+                            <button type="submit" class="text-amber-500 hover:text-amber-600 transition-colors tooltip" title="Mark as read">
+                                <span class="material-symbols-outlined font-bold" style="font-size: 20px;">close</span>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="grid grid-cols-12 gap-6">
+                    <!-- Left Column: Risk & Chart -->
+                    <div class="col-span-12 lg:col-span-8 space-y-6">
+                        <!-- Top Row: Risk Gauge & Quick Stats -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Circular Risk Gauge Card -->
+                            <div
+                                class="bg-white dark:bg-[#162d20] rounded-2xl p-6 border border-slate-200 dark:border-white/5 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                                <div class="relative size-48 flex items-center justify-center">
+                                    <svg class="size-full transform -rotate-90">
+                                        <circle class="text-slate-200 dark:text-white/10" cx="96" cy="96"
+                                            fill="transparent" r="80" stroke="currentColor" stroke-width="12"></circle>
+                                        <circle class="text-primary drop-shadow-[0_0_8px_rgba(19,236,109,0.5)]" cx="96"
+                                            cy="96" fill="transparent" r="80" stroke="currentColor"
+                                            stroke-dasharray="502"
+                                            stroke-dashoffset="{{ 502 - (502 * prediction.risk_score / 100) }}"
+                                            stroke-linecap="round" stroke-width="12"></circle>
+                                    </svg>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span class="text-4xl font-black text-slate-900 dark:text-white leading-none">{{
+                                            prediction.risk_score }}%</span>
+                                        <span class="text-sm font-bold text-primary tracking-widest uppercase mt-1">{{
+                                            prediction.risk_level }}</span>
+                                    </div>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-slate-900 dark:text-white font-bold">Injury Risk Level</p>
+                                    <p class="text-slate-500 dark:text-primary/60 text-xs mt-1">{{
+                                        prediction.recommendation }}</p>
+                                </div>
+                            </div>
+                            <!-- Quick Stats Cards -->
+                            <div class="grid grid-rows-2 gap-4">
+                                <div
+                                    class="bg-white dark:bg-[#162d20] rounded-2xl p-6 border border-slate-200 dark:border-white/5 flex items-center gap-4">
+                                    <div class="bg-primary/20 text-primary p-3 rounded-xl">
+                                        <span class="material-symbols-outlined">calendar_today</span>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-slate-500 dark:text-white/60 text-xs font-bold uppercase tracking-wider">
+                                            Days Injury Free</p>
+                                        <p class="text-2xl font-black text-slate-900 dark:text-white">{{ prediction.days_injury_free }} Days</p>
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-white dark:bg-[#162d20] rounded-2xl p-6 border border-slate-200 dark:border-white/5 flex items-center gap-4">
+                                    <div class="bg-blue-500/20 text-blue-400 p-3 rounded-xl">
+                                        <span class="material-symbols-outlined">bedtime</span>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-slate-500 dark:text-white/60 text-xs font-bold uppercase tracking-wider">
+                                            Avg. Sleep (7d)</p>
+                                        <p class="text-2xl font-black text-slate-900 dark:text-white">{{ prediction.avg_sleep }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Right Column: Recommendations & Wellness -->
+                    <div class="col-span-12 lg:col-span-4 space-y-6">
+                        <!-- Daily Wellness Check-in Card -->
+                        <div
+                            class="bg-white dark:bg-[#162d20] rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden">
+                            <h3
+                                class="bg-slate-100 dark:bg-white/5 px-6 py-4 text-slate-900 dark:text-white font-bold border-b border-slate-200 dark:border-white/5">
+                                Daily Wellness Check-in</h3>
+
+                            <!-- State 1: Locked View / Intro (The Button they requested) -->
+                            <div id="wellness-intro" class="p-6 text-center">
+                                {% if has_logged_today %}
+                                <p class="text-sm text-slate-500 dark:text-white/60 mb-4">You have already logged your
+                                    wellness data today. Great job!</p>
+                                <button
+                                    onclick="document.getElementById('wellness-intro').classList.add('hidden'); document.getElementById('wellness-form').classList.remove('hidden');"
+                                    class="bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white/80 font-bold py-2 px-6 rounded-xl hover:opacity-90 transition-opacity">
+                                    Update Check-in
+                                </button>
+                                {% else %}
+                                <p class="text-sm text-slate-500 dark:text-white/60 mb-4">You haven't logged your
+                                    wellness data today.</p>
+                                <button
+                                    onclick="document.getElementById('wellness-intro').classList.add('hidden'); document.getElementById('wellness-form').classList.remove('hidden');"
+                                    class="bg-primary text-slate-900 font-bold py-2 px-6 rounded-xl hover:opacity-90 transition-opacity">
+                                    Daily Check-in
+                                </button>
+                                {% endif %}
+                            </div>
+
+                            <!-- State 2: Interactive Form (Maintains the precise design but functional) -->
+                            <form id="wellness-form" action="{{ url_for('submit_wellness') }}" method="POST"
+                                class="p-6 space-y-6 hidden relative">
+                                <!-- Cancel/Close Button -->
+                                <button type="button"
+                                    onclick="document.getElementById('wellness-intro').classList.remove('hidden'); document.getElementById('wellness-form').classList.add('hidden');"
+                                    class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                                    aria-label="Close form">
+                                    <span class="material-symbols-outlined text-sm">close</span>
+                                </button>
+                                <!-- Slider Component 1 -->
+                                <div class="space-y-3 relative">
+                                    <div class="flex justify-between items-center">
+                                        <label class="text-sm font-semibold text-slate-700 dark:text-white/80">Sleep
+                                            Quality</label>
+                                        <span id="sleep-label"
+                                            class="text-primary text-xs font-bold bg-primary/10 px-2 py-0.5 rounded">0/10</span>
+                                    </div>
+                                    <div class="relative h-2 bg-slate-200 dark:bg-white/10 rounded-full">
+                                        <div id="sleep-bar"
+                                            class="absolute h-full bg-primary rounded-full transition-all"
+                                            style="width: 0%;"></div>
+                                        <div id="sleep-thumb"
+                                            class="absolute top-1/2 -translate-y-1/2 size-4 bg-primary rounded-full shadow-lg transition-all"
+                                            style="left: 0%;"></div>
+                                        <input type="range" name="sleep_quality" min="0" max="10" value="0"
+                                            class="absolute inset-0 w-full h-8 -top-3 opacity-0 cursor-pointer z-10"
+                                            oninput="document.getElementById('sleep-bar').style.width = this.value * 10 + '%'; document.getElementById('sleep-thumb').style.left = this.value * 10 + '%'; document.getElementById('sleep-label').innerText = this.value + '/10';">
+                                    </div>
+                                </div>
+                                <!-- Slider Component 2 -->
+                                <div class="space-y-3 relative">
+                                    <div class="flex justify-between items-center">
+                                        <label class="text-sm font-semibold text-slate-700 dark:text-white/80">Muscle
+                                            Soreness</label>
+                                        <span id="soreness-label"
+                                            class="text-yellow-400 text-xs font-bold bg-yellow-400/10 px-2 py-0.5 rounded">0/10</span>
+                                    </div>
+                                    <div class="relative h-2 bg-slate-200 dark:bg-white/10 rounded-full">
+                                        <div id="soreness-bar"
+                                            class="absolute h-full bg-yellow-400 rounded-full transition-all"
+                                            style="width: 0%;"></div>
+                                        <div id="soreness-thumb"
+                                            class="absolute top-1/2 -translate-y-1/2 size-4 bg-yellow-400 rounded-full shadow-lg transition-all"
+                                            style="left: 0%;"></div>
+                                        <input type="range" name="muscle_soreness" min="0" max="10" value="0"
+                                            class="absolute inset-0 w-full h-8 -top-3 opacity-0 cursor-pointer z-10"
+                                            oninput="document.getElementById('soreness-bar').style.width = this.value * 10 + '%'; document.getElementById('soreness-thumb').style.left = this.value * 10 + '%'; document.getElementById('soreness-label').innerText = this.value + '/10';">
+                                    </div>
+                                </div>
+                                <!-- Slider Component 3 -->
+                                <div class="space-y-3 relative">
+                                    <div class="flex justify-between items-center">
+                                        <label class="text-sm font-semibold text-slate-700 dark:text-white/80">Fatigue
+                                            Level</label>
+                                        <span id="fatigue-label"
+                                            class="text-red-400 text-xs font-bold bg-red-400/10 px-2 py-0.5 rounded">0/10</span>
+                                    </div>
+                                    <div class="relative h-2 bg-slate-200 dark:bg-white/10 rounded-full">
+                                        <div id="fatigue-bar"
+                                            class="absolute h-full bg-red-400 rounded-full transition-all"
+                                            style="width: 0%;"></div>
+                                        <div id="fatigue-thumb"
+                                            class="absolute top-1/2 -translate-y-1/2 size-4 bg-red-400 rounded-full shadow-lg transition-all"
+                                            style="left: 0%;"></div>
+                                        <input type="range" name="fatigue_level" min="0" max="10" value="0"
+                                            class="absolute inset-0 w-full h-8 -top-3 opacity-0 cursor-pointer z-10"
+                                            oninput="document.getElementById('fatigue-bar').style.width = this.value * 10 + '%'; document.getElementById('fatigue-thumb').style.left = this.value * 10 + '%'; document.getElementById('fatigue-label').innerText = this.value + '/10';">
+                                    </div>
+                                </div>
+                                <button type="submit"
+                                    class="w-full bg-slate-900 dark:bg-white text-white dark:text-background-dark py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-opacity mt-4 cursor-pointer">
+                                    Save Entry
+                                </button>
+                            </form>
+                        </div>
+                        <!-- Recommendations Panel -->
+                        <div
+                            class="bg-white dark:bg-[#162d20] rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden">
+                            <h3
+                                class="bg-slate-100 dark:bg-white/5 px-6 py-4 text-slate-900 dark:text-white font-bold border-b border-slate-200 dark:border-white/5 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-xl">tips_and_updates</span>
+                                Prevention Recommendations
+                            </h3>
+                            <div class="p-6 space-y-4">
+                                <div class="flex gap-4 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                                    <span class="material-symbols-outlined text-orange-500 shrink-0">warning</span>
+                                    <div class="space-y-1">
+                                        <p class="text-xs font-bold text-orange-500 uppercase">High Priority</p>
+                                        <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-tight">
+                                            Reduce training intensity by 20% today</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-4 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                                    <span class="material-symbols-outlined text-primary shrink-0">fitness_center</span>
+                                    <div class="space-y-1">
+                                        <p class="text-xs font-bold text-primary uppercase">Mobility</p>
+                                        <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-tight">
+                                            Focus on hip mobility work for 15 mins</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                                    <span class="material-symbols-outlined text-blue-400 shrink-0">water_drop</span>
+                                    <div class="space-y-1">
+                                        <p class="text-xs font-bold text-blue-400 uppercase">Nutrition</p>
+                                        <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-tight">
+                                            Hydration target: 3.5L with electrolytes</p>
+                                    </div>
+                                </div>
+                                <a class="block text-center text-primary text-xs font-bold uppercase tracking-widest pt-2 hover:underline"
+                                    href="/guide">View All Guides</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

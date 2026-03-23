@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Session History | PlayFit FC</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-dark": "#0c1a12",
+                        "card-dark": "#112218",
+                        "border-dark": "#234833"
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .intensity-bar { width: 0%; transition: width 0.3s ease; }
+        .intensity-1 { width: 10%; }
+        .intensity-2 { width: 20%; }
+        .intensity-3 { width: 30%; }
+        .intensity-4 { width: 40%; }
+        .intensity-5 { width: 50%; }
+        .intensity-6 { width: 60%; }
+        .intensity-7 { width: 70%; }
+        .intensity-8 { width: 80%; }
+        .intensity-9 { width: 90%; }
+        .intensity-10 { width: 100%; }
+
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark text-slate-100 min-h-screen">
+    <div class="flex flex-col h-screen overflow-hidden">
+        <!-- Header -->
+        <header class="h-20 border-b border-border-dark flex items-center justify-between px-8 bg-background-dark/80 backdrop-blur-md z-10 shrink-0">
+            <div class="flex items-center gap-4">
+                <a href="/data_entry" class="hover:bg-primary/10 p-2 rounded-lg transition-colors text-primary">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </a>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight text-white uppercase">Session Entry History</h1>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 px-4 py-2 bg-card-dark rounded-xl border border-border-dark">
+                    <div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                        {{ user.username[:2].upper() }}
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold">{{ user.username.split('@')[0] }}</span>
+                        <span class="text-[10px] text-[#92c9a9] uppercase font-black">Head Coach</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-8 no-scrollbar">
+            <div class="max-w-6xl mx-auto space-y-8">
+                <!-- History Table Card -->
+                <div class="bg-card-dark border border-border-dark rounded-2xl overflow-hidden shadow-2xl">
+                    <div class="px-8 py-6 border-b border-border-dark bg-gradient-to-r from-card-dark to-background-dark flex items-center justify-between">
+                        <div>
+                            <h3 class="text-white font-bold">Historical Workload Metrics</h3>
+                            <p class="text-[#92c9a9] text-xs">A complete record of all training and match sessions logged for your team.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-black uppercase text-[#92c9a9] tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                                {{ history|length }} Entries Found
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-background-dark/50 text-[10px] font-black uppercase tracking-widest text-[#92c9a9] border-b border-border-dark text-center">
+                                    <th class="px-6 py-4 text-left">Session Date</th>
+                                    <th class="px-6 py-4 text-left">Player</th>
+                                    <th class="px-6 py-4">Training Minutes</th>
+                                    <th class="px-6 py-4">Training Intensity</th>
+                                    <th class="px-6 py-4">Sessions per Week</th>
+                                    <th class="px-6 py-4">Minutes Played</th>
+                                    <th class="px-6 py-4">Matches per Week</th>
+                                    <th class="px-6 py-4 text-right">Participation</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border-dark/30">
+                                {% for item in history %}
+                                <tr class="hover:bg-primary/5 transition-colors group">
+                                    <td class="px-6 py-5">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-bold text-white">{{ item.training_date }}</span>
+                                            <span class="text-[10px] text-[#92c9a9] font-medium">Session ID: #{{ item.training_id }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <div class="flex items-center gap-3">
+                                            <div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                                                {{ item.player_name[:2] }}
+                                            </div>
+                                            <span class="text-sm font-bold text-slate-200 capitalize">{{ item.player_name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5 text-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ item.technical_mins or '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5 text-center">
+                                        {% if item.technical_intensity %}
+                                        <div class="flex items-center justify-center gap-2">
+                                            {% set i_str = item.technical_intensity %}
+                                            {% if i_str == 'High' %}{% set intensity = 9 %}
+                                            {% elif i_str == 'Medium' %}{% set intensity = 6 %}
+                                            {% else %}{% set intensity = 3 %}{% endif %}
+                                            <div class="w-12 h-1.5 bg-background-dark rounded-full overflow-hidden">
+                                                <div class="h-full {% if intensity >= 8 %}bg-red-500{% elif intensity >= 5 %}bg-amber-500{% else %}bg-primary{% endif %} intensity-bar intensity-{{ intensity }}"></div>
+                                            </div>
+                                            <span class="text-[10px] font-bold {% if intensity >= 8 %}text-red-400{% elif intensity >= 5 %}text-amber-400{% else %}text-primary{% endif %}">
+                                                {{ i_str }}
+                                            </span>
+                                        </div>
+                                        {% else %}-{% endif %}
+                                    </td>
+                                    <td class="px-6 py-5 text-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ item.technical_freq or '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5 text-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ item.match_mins or '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5 text-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ item.match_freq or '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5 text-right">
+                                        {% set status = item.participation_status or 'Full Participation' %}
+                                        <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase
+                                            {% if 'No' in status %}bg-red-500/10 text-red-400 border border-red-500/20
+                                            {% elif 'Modified' in status %}bg-amber-500/10 text-amber-400 border border-amber-500/20
+                                            {% else %}bg-primary/10 text-primary border border-primary/20{% endif %}">
+                                            {{ status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="px-8 py-12 text-center">
+                                        <div class="flex flex-col items-center gap-3 opacity-40">
+                                            <span class="material-symbols-outlined text-4xl">inventory_2</span>
+                                            <p class="text-sm">No session entries found in history.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

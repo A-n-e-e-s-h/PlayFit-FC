@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Coach Dashboard Overview - PLAYFIT FC</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #234833;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <aside
+            class="w-64 flex-shrink-0 bg-background-light dark:bg-background-dark border-r border-slate-200 dark:border-[#234833] flex flex-col">
+            <div class="p-6 flex flex-col h-full">
+                <!-- Logo/Brand -->
+                <div class="flex items-center gap-3 mb-10">
+                    <div class="bg-primary/20 p-2 rounded-lg">
+                        <span class="material-symbols-outlined text-primary">analytics</span>
+                    </div>
+                    <div>
+                        <h1 class="text-slate-900 dark:text-white text-base font-bold leading-tight">Coach Dashboard
+                        </h1>
+                        <p class="text-slate-500 dark:text-[#92c9a9] text-xs">PLAYFIT FC</p>
+                    </div>
+                </div>
+                <!-- Nav Links -->
+                <nav class="flex-1 flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/20"
+                        href="/dashboard">
+                        <span class="material-symbols-outlined text-[24px]">dashboard</span>
+                        <span class="text-sm font-medium">Dashboard</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#234833] transition-colors"
+                        href="/player_management">
+                        <span class="material-symbols-outlined text-[24px]">groups</span>
+                        <span class="text-sm font-medium">Player Management</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#234833] transition-colors"
+                        href="/data_entry">
+                        <span class="material-symbols-outlined text-[24px]">history</span>
+                        <span class="text-sm font-medium">Data Entry</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#234833] transition-colors"
+                        href="/analytics">
+                        <span class="material-symbols-outlined text-[24px]">assessment</span>
+                        <span class="text-sm font-medium">Reports</span>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 dark:text-red-400 hover:bg-red-500/10 transition-colors mt-4"
+                        href="/signout">
+                        <span class="material-symbols-outlined text-[24px]">logout</span>
+                        <span class="text-sm font-medium">Sign Out</span>
+                    </a>
+                </nav>
+                <!-- Profile Placeholder -->
+                <div class="mt-auto pt-6 border-t border-slate-200 dark:border-[#234833]">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/30"
+                            data-alt="Headshot of the head coach"
+                            style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCII0-CRbg4Gd6iWftP5ZM0KpvBLTvI1G7fYPufS2IEIXeyRHaZqPp6lkFqv5kJ0enWU5lBoFrQwO6TzJ5FyloNWTpTkgNTYSKVDJQVRWWinKtYuHmDiLFwAK-LMAXwyiYsaHeCJP-DyzM6UG_s5f6YEmsBPgvxO7PV3WknxcViCT3N2rHIXq3peLOSfTssqbIafl-p8-GHm4mLZ0OAcUPuqNBsmnneYn30VvWSxMUkB6_M_vxe74ZhoUPN7Xe_6ASUeqzRtpwjtvo");'>
+                        </div>
+                        <div class="flex flex-col">
+                            <p class="text-sm font-bold truncate">Coach {{ user.username.split('@')[0] | capitalize }}
+                            </p>
+                            <p class="text-xs text-slate-500 dark:text-[#92c9a9]">Head Performance</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Navigation -->
+            <header
+                class="flex items-center justify-between px-8 py-4 bg-background-light dark:bg-background-dark border-b border-slate-200 dark:border-[#234833]">
+                <div class="flex items-center gap-6 flex-1">
+                    <h2 class="hidden md:block text-slate-900 dark:text-white text-lg font-bold tracking-tight">System
+                        Overview</h2>
+
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex gap-2">
+                    </div>
+                </div>
+            </header>
+            <!-- Content Scrollable Area -->
+            <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div
+                        class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <p class="text-slate-500 dark:text-slate-300 text-sm font-medium">Total Players</p>
+                            <span class="material-symbols-outlined text-primary">groups</span>
+                        </div>
+                        <h3 class="text-slate-900 dark:text-white text-3xl font-bold">{{ total_players }}</h3>
+                        <p class="text-xs mt-2 font-medium flex items-center gap-1
+                            {% if total_players_trend > 0 %}text-primary
+                            {% elif total_players_trend < 0 %}text-red-500
+                            {% else %}text-slate-500 dark:text-slate-400{% endif %}">
+                            <span class="material-symbols-outlined text-[14px]">
+                                {% if total_players_trend > 0 %}trending_up
+                                {% elif total_players_trend < 0 %}trending_down
+                                {% else %}trending_flat{% endif %}
+                            </span> 
+                            {% if total_players_trend > 0 %}+{% endif %}{{ total_players_trend }}% from last month
+                        </p>
+                    </div>
+                    <div
+                        class="bg-white dark:bg-[#102218] border border-red-200 dark:border-red-900/30 p-6 rounded-xl shadow-sm relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-2 relative z-10">
+                            <p class="text-slate-500 dark:text-slate-300 text-sm font-medium">High Risk Count</p>
+                            <span class="material-symbols-outlined text-red-500">warning</span>
+                        </div>
+                        <h3 class="text-slate-900 dark:text-white text-3xl font-bold relative z-10">{{ high_risk_count }}</h3>
+                        <p class="text-xs mt-2 font-medium flex items-center gap-1 relative z-10
+                            {% if risk_trend > 0 %}text-red-500
+                            {% elif risk_trend < 0 %}text-primary
+                            {% else %}text-slate-500 dark:text-slate-400{% endif %}">
+                            <span class="material-symbols-outlined text-[14px]">
+                                {% if risk_trend > 0 %}trending_up
+                                {% elif risk_trend < 0 %}trending_down
+                                {% else %}trending_flat{% endif %}
+                            </span> 
+                            {% if risk_trend > 0 %}+{% endif %}{{ risk_trend }}% increase
+                        </p>
+                        <!-- Subtle red glow effect for warning -->
+                        <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-red-500/10 blur-3xl rounded-full"></div>
+                    </div>
+                    <div
+                        class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl shadow-sm">
+                        <div class="flex justify-between items-start mb-2">
+                            <p class="text-slate-500 dark:text-slate-300 text-sm font-medium">Avg. Team Fatigue</p>
+                            <span class="material-symbols-outlined text-amber-500">bolt</span>
+                        </div>
+                        <h3 class="text-slate-900 dark:text-white text-3xl font-bold">{{ avg_team_fatigue }}%</h3>
+                        <p class="text-xs mt-2 font-medium flex items-center gap-1
+                            {% if fatigue_trend > 0 %}text-red-500
+                            {% elif fatigue_trend < 0 %}text-primary
+                            {% else %}text-slate-500 dark:text-slate-400{% endif %}">
+                            <span class="material-symbols-outlined text-[14px]">
+                                {% if fatigue_trend > 0 %}trending_up
+                                {% elif fatigue_trend < 0 %}trending_down
+                                {% else %}trending_flat{% endif %}
+                            </span> 
+                            {% if fatigue_trend > 0 %}+{% endif %}{{ fatigue_trend }}% recovery trend
+                        </p>
+                    </div>
+                </div>
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Main Chart -->
+                    <div
+                        class="lg:col-span-2 bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h4 class="text-slate-900 dark:text-white font-bold text-lg">Workload vs. Fatigue</h4>
+                                <p class="text-slate-500 dark:text-[#92c9a9] text-sm">Cumulative team performance
+                                    metrics (Last 7 Days)</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]"><span
+                                        class="w-3 h-3 rounded-full bg-primary"></span> Workload</span>
+                                <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]"><span
+                                        class="w-3 h-3 rounded-full bg-slate-400 dark:bg-[#326748]"></span>
+                                    Fatigue</span>
+                            </div>
+                        </div>
+                        <div class="h-64 flex flex-col justify-end gap-4">
+                            <div class="flex-1 relative">
+                                <!-- Chart SVG Placeholder -->
+                                <svg class="w-full h-full" fill="none" preserveaspectratio="none" viewbox="0 0 400 150">
+                                    <path d="{{ fatigue_svg_path }}" fill="none"
+                                        stroke="#13ec6d" stroke-width="3"></path>
+                                    <path d="{{ workload_svg_path }}" fill="none"
+                                        stroke="#326748" stroke-dasharray="4 4" stroke-width="2"></path>
+                                    <!-- Gradients and area fills -->
+                                    <defs>
+                                        <lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+                                            <stop offset="0%" stop-color="#13ec6d" stop-opacity="0.2"></stop>
+                                            <stop offset="100%" stop-color="#13ec6d" stop-opacity="0"></stop>
+                                        </lineargradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <div class="flex justify-between px-2">
+                                {% for label in chart_labels %}
+                                    <span class="text-xs font-bold text-slate-400 dark:text-[#92c9a9]">{{ label }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Side Card: Urgent Alerts -->
+                    <a href="/analytics"
+                        class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl flex flex-col hover:border-primary/50 transition-all cursor-pointer">
+                        <h4 class="text-slate-900 dark:text-white font-bold text-lg mb-4">Risk Alerts</h4>
+                        <div class="space-y-4 flex-1">
+                            {% for alert in risk_alerts %}
+                            <div class="p-3 {% if alert.type == 'CRITICAL FATIGUE' %}bg-red-50 dark:bg-red-500/10 border-red-500{% else %}bg-amber-50 dark:bg-amber-500/10 border-amber-500{% endif %} border-l-4 rounded-r-lg hover:shadow-md transition-shadow">
+                                <p class="text-xs font-bold {% if alert.type == 'CRITICAL FATIGUE' %}text-red-600 dark:text-red-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ alert.type }}</p>
+                                <p class="text-sm font-medium dark:text-slate-200">{{ alert.message }}</p>
+                                <p class="text-[10px] text-slate-500 mt-1">{{ alert.time }}</p>
+                            </div>
+                            {% else %}
+                            <div class="flex flex-col items-center justify-center h-full opacity-40 py-8">
+                                <span class="material-symbols-outlined text-4xl mb-2">check_circle</span>
+                                <p class="text-xs font-bold uppercase tracking-wider">All Squad Safe</p>
+                                <p class="text-[10px]">No high-risk players detected</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button
+                            class="w-full mt-4 py-2 text-sm font-bold text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
+                            onclick="event.stopPropagation(); window.location.href='/analytics'">
+                            View All Alerts
+                        </button>
+                    </a>
+                </div>
+                <!-- Team Injury Risk Table -->
+                <div
+                    class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] rounded-xl overflow-hidden shadow-sm">
+                    <div
+                        class="px-6 py-5 border-b border-slate-200 dark:border-[#326748] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <h2 class="text-slate-900 dark:text-white text-lg font-bold">Team Injury Risk Status</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr
+                                    class="bg-slate-50 dark:bg-[#112218]/50 text-slate-500 dark:text-[#92c9a9] text-xs uppercase tracking-wider font-bold">
+                                    <th class="px-6 py-4">Player Name</th>
+                                    <th class="px-6 py-4">Position</th>
+                                    <th class="px-6 py-4">Last Session</th>
+                                    <th class="px-6 py-4">Risk Level</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-[#326748]">
+                                {% for player in team_players %}
+                                <tr class="hover:bg-slate-50 dark:hover:bg-[#1a2e22] transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                                                {{ player.username[:2] }}</div>
+                                            <span class="text-sm font-bold capitalize">{{ player.username.split('@')[0] }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm font-medium">{{ player.position or 'N/A' }}</td>
+                                    <td class="px-6 py-4 text-sm text-slate-500 dark:text-[#92c9a9]">{{ player.last_session }}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide 
+                                            {% if player.risk_level == 'High' %}bg-red-500/10 text-red-500 border border-red-500/20
+                                            {% elif player.risk_level == 'Medium' %}bg-amber-500/10 text-amber-500 border border-amber-500/20
+                                            {% else %}bg-primary/10 text-primary border border-primary/20{% endif %}">
+                                            {{ player.risk_level }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                                        <span class="material-symbols-outlined text-4xl mb-2 opacity-50">group_off</span>
+                                        <p>No players have joined your team yet.</p>
+                                        <p class="text-xs mt-1">Share the team code "<strong>{{ user.team_code }}</strong>" with your players.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="px-6 py-4 bg-slate-50 dark:bg-[#112218]/50 border-t border-slate-200 dark:border-[#326748] flex items-center justify-between">
+                        <span class="text-xs text-slate-500 dark:text-[#92c9a9]">Showing {{ total_players }} of {{ total_players }} players</span>
+                        <div class="flex gap-2">
+                            <button
+                                class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-400 cursor-not-allowed">
+                                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                            </button>
+                            <button
+                                class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-600 dark:text-white hover:border-primary transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

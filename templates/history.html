@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Wellness &amp; Risk History | ProGuard Sports</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;display=swap" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+
+        .chart-gradient {
+            background: linear-gradient(180deg, rgba(19, 236, 109, 0.2) 0%, rgba(19, 236, 109, 0) 100%);
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside
+            class="w-64 flex-shrink-0 bg-background-light dark:bg-background-dark border-r border-slate-200 dark:border-primary/10 flex flex-col h-full">
+            <div class="p-6 flex items-center gap-3">
+                <div class="size-10 rounded-full bg-primary flex items-center justify-center text-background-dark">
+                    <span class="material-symbols-outlined font-bold">shield_with_heart</span>
+                </div>
+                <div class="flex flex-col">
+                    <h1 class="text-sm font-bold tracking-tight">PLAYFIT FC</h1>
+                    <p class="text-[10px] text-slate-500 dark:text-primary/60 uppercase tracking-widest">Elite
+                        Performance</p>
+                </div>
+            </div>
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition-colors"
+                    href="/dashboard">
+                    <span class="material-symbols-outlined">dashboard</span>
+                    <span class="text-sm font-medium">My Dashboard</span>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 text-primary transition-colors border border-primary/20"
+                    href="/history">
+                    <span class="material-symbols-outlined">history</span>
+                    <span class="text-sm font-medium">History</span>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 transition-colors"
+                    href="/guide">
+                    <span class="material-symbols-outlined">verified_user</span>
+                    <span class="text-sm font-medium">Prevention Guide</span>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors mt-4"
+                    href="/signout">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span class="text-sm font-medium">Sign Out</span>
+                </a>
+            </nav>
+            <div class="p-4 border-t border-slate-200 dark:border-primary/10">
+                <div class="flex items-center gap-3 p-2 rounded-xl bg-slate-100 dark:bg-primary/5">
+                    <div class="size-8 rounded-full overflow-hidden bg-slate-300">
+                        <img class="w-full h-full object-cover" data-alt="Athlete profile portrait"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1HU6K-3_lBaNNAMmf32dp_ohPvuzkkc7Pp5dAcz8VFREaaauLEkWrDnPnf4GcmSPsgRBKLGjgbOrbeBzLlxkIsU18fnN1yrHjXfD0qXQl1zyW8dKQKZSrkEGNeIHV2fWVVkmUuHXqyf92JtZrv1GYswDk6glOgU4PEYlx2ADFqdTKJFvq4ZGe8hNwNw0AwcwrsE44INA3kx95T1flu6XDk8-0n-lQsya6KlTm3IDFlOcZ3xblle50r6S3mSodTsQbOxWnAL5DMII" />
+                    </div>
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-xs font-bold truncate">{{ user.username.split('@')[0] | capitalize }}</p>
+                        <p class="text-[10px] text-slate-500 truncate">Elite Tier Player</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto bg-background-light dark:bg-[#0c1a12]">
+            <!-- Header Section -->
+            <header
+                class="px-8 py-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-primary/5 sticky top-0 z-10 bg-background-light/80 dark:bg-[#0c1a12]/80 backdrop-blur-md">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Wellness &amp; Risk
+                        History</h2>
+                    <p class="text-sm text-slate-500 dark:text-primary/60">Longitudinal analysis of performance and
+                        physiological readiness</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex bg-slate-100 dark:bg-primary/10 rounded-lg p-1">
+                        <a href="/history?period=7"
+                            class="px-3 py-1 text-xs font-medium rounded-md {% if prediction.period == 7 %}bg-white dark:bg-primary text-slate-900 dark:text-background-dark shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:text-primary transition-colors{% endif %}">7D</a>
+                        <a href="/history?period=30"
+                            class="px-3 py-1 text-xs font-medium rounded-md {% if prediction.period == 30 %}bg-white dark:bg-primary text-slate-900 dark:text-background-dark shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:text-primary transition-colors{% endif %}">30D</a>
+                        <a href="/history?period=90"
+                            class="px-3 py-1 text-xs font-medium rounded-md {% if prediction.period == 90 %}bg-white dark:bg-primary text-slate-900 dark:text-background-dark shadow-sm{% else %}text-slate-600 dark:text-slate-400 hover:text-primary transition-colors{% endif %}">90D</a>
+
+                    </div>
+
+            </header>
+            <div class="p-8 space-y-8 max-w-7xl mx-auto">
+                <!-- Stat Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div
+                        class="p-6 rounded-xl bg-white dark:bg-background-dark border border-slate-200 dark:border-primary/10 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500 dark:text-primary/60 uppercase">Avg Sleep
+                                Quality</span>
+                            <span class="material-symbols-outlined text-primary text-sm">bedtime</span>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black">{{ prediction.avg_sleep }}</span>
+                            <span class="text-[10px] font-bold text-primary">+5% vs last week</span>
+                        </div>
+                    </div>
+                    <div
+                        class="p-6 rounded-xl bg-white dark:bg-background-dark border border-slate-200 dark:border-primary/10 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500 dark:text-primary/60 uppercase">Avg
+                                Soreness</span>
+                            <span class="material-symbols-outlined text-amber-500 text-sm">personal_injury</span>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black">{{ prediction.avg_soreness }}</span>
+                            <span class="text-[10px] font-bold text-red-400">+12% vs last week</span>
+                        </div>
+                    </div>
+                    <div
+                        class="p-6 rounded-xl bg-white dark:bg-background-dark border border-slate-200 dark:border-primary/10 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500 dark:text-primary/60 uppercase">Current
+                                Risk</span>
+                            <span class="material-symbols-outlined text-primary text-sm">trending_down</span>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-2xl font-black text-primary">{{ prediction.risk_score }}%</span>
+                            <span class="text-[10px] font-bold text-primary">{{ prediction.risk_level }}</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Risk Trend Chart Container -->
+                <div
+                    class="p-6 rounded-xl bg-white dark:bg-background-dark border border-slate-200 dark:border-primary/10 overflow-hidden">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 class="font-bold text-lg">Injury Risk Probability (%)</h3>
+                            <p class="text-xs text-slate-500 dark:text-primary/40">Daily volatility for current selected
+                                period</p>
+                        </div>
+                        <div class="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
+                            <div class="flex items-center gap-1.5">
+                                <span class="size-2 rounded-full bg-primary"></span> Low Risk
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="size-2 rounded-full bg-amber-500"></span> Moderate
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="size-2 rounded-full bg-red-500"></span> High Risk
+                            </div>
+                        </div>
+                    </div>
+                    <div class="relative w-full flex flex-col gap-4">
+                        <!-- Custom SVG Chart Simulation -->
+                        <svg class="w-full h-56 overflow-visible" preserveaspectratio="none" viewbox="0 0 400 100">
+                            <!-- Background Grid -->
+                            <line class="stroke-slate-100 dark:stroke-primary/5" stroke-width="0.5" x1="0" x2="400"
+                                y1="25" y2="25"></line>
+                            <line class="stroke-slate-100 dark:stroke-primary/5" stroke-width="0.5" x1="0" x2="400"
+                                y1="50" y2="50"></line>
+                            <line class="stroke-slate-100 dark:stroke-primary/5" stroke-width="0.5" x1="0" x2="400"
+                                y1="75" y2="75"></line>
+                            <!-- Area Gradient Fill -->
+                            <path
+                                d="{{ prediction.history_svg_path }} L400,100 L0,100 Z"
+                                fill="url(#chart-grad)"></path>
+                            <!-- Main Line -->
+                            <path class="stroke-primary"
+                                d="{{ prediction.history_svg_path }}"
+                                fill="none" stroke-linecap="round" stroke-width="3"></path>
+                            <defs>
+                                <lineargradient id="chart-grad" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="#13ec6d" stop-opacity="0.25"></stop>
+                                    <stop offset="100%" stop-color="#13ec6d" stop-opacity="0"></stop>
+                                </lineargradient>
+                            </defs>
+                            <!-- Data Points/Indicators -->
+                            {% for pt in prediction.history_points %}
+                            <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="2" 
+                                class="{% if pt.risk >= 70 %}fill-red-500{% elif pt.risk >= 35 %}fill-amber-500{% else %}fill-primary{% endif %} stroke-white dark:stroke-background-dark" 
+                                stroke-width="1.5"></circle>
+                            {% endfor %}
+                        </svg>
+                        <!-- X-Axis Labels -->
+                        <div
+                            class="flex justify-between text-[11px] font-bold text-slate-400 dark:text-primary/40">
+                            <span>{{ prediction.history_labels[0] }}</span>
+                            <span>{{ prediction.history_labels[1] }}</span>
+                            <span>{{ prediction.history_labels[2] }}</span>
+                            <span>{{ prediction.history_labels[3] }}</span>
+                            <span>{{ prediction.history_labels[4] }}</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Wellness Log Table -->
+                <div
+                    class="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-primary/10 overflow-hidden">
+                    <div
+                        class="px-6 py-4 border-b border-slate-200 dark:border-primary/10 flex items-center justify-between">
+                        <h3 class="font-bold">Detailed Activity Log</h3>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500 dark:text-primary/40">Showing {{ wellness_logs|length }}
+                                entries</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr
+                                    class="bg-slate-50 dark:bg-primary/5 text-slate-500 dark:text-primary/60 text-[10px] uppercase tracking-wider font-bold">
+                                    <th class="px-6 py-4">Date</th>
+                                    <th class="px-6 py-4">Sleep Quality</th>
+                                    <th class="px-6 py-4">Muscle Soreness</th>
+                                    <th class="px-6 py-4">Fatigue Level</th>
+                                    <th class="px-6 py-4">Injury Risk</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-primary/5">
+                                {% for log in wellness_logs %}
+                                <tr class="hover:bg-slate-50 dark:hover:bg-primary/5 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="font-bold">{{ log.entry_date }}</div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        {% set sleep_val = 8 if log.sleep_quality == 'Good' else (5 if log.sleep_quality == 'Average' else 2) %}
+                                        <div class="flex items-center gap-2">
+                                            <div class="h-2 w-16 bg-slate-100 dark:bg-primary/10 rounded-full overflow-hidden">
+                                                <div class="h-full {% if sleep_val >= 8 %}bg-primary{% elif sleep_val >= 4 %}bg-amber-500{% else %}bg-red-500{% endif %} rounded-full"
+                                                    {{ ('style="width: ' ~ (sleep_val * 10)|string ~ '%;"')|safe }}>
+                                                </div>
+                                            </div>
+                                            <span class="text-[10px] font-bold">{{ sleep_val }}/10</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        {% set sore_val = 8 if log.muscle_soreness == 'High' else (5 if log.muscle_soreness == 'Medium' else 2) %}
+                                        <div class="flex items-center gap-2">
+                                            <div class="h-2 w-16 bg-slate-100 dark:bg-primary/10 rounded-full overflow-hidden">
+                                                <div class="h-full {% if sore_val >= 8 %}bg-red-500{% elif sore_val >= 5 %}bg-amber-500{% else %}bg-primary{% endif %} rounded-full"
+                                                    {{ ('style="width: ' ~ (sore_val * 10)|string ~ '%;"')|safe }}>
+                                                </div>
+                                            </div>
+                                            <span class="text-[10px] font-bold">{{ sore_val }}/10</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="h-2 w-16 bg-slate-100 dark:bg-primary/10 rounded-full overflow-hidden">
+                                                <div class="h-full {% if log.fatigue_level >= 8 %}bg-red-500{% elif log.fatigue_level >= 5 %}bg-amber-500{% else %}bg-primary{% endif %} rounded-full"
+                                                    {{ ('style="width: ' ~ (log.fatigue_level * 10)|string ~ '%;"')|safe }}>
+                                                </div>
+                                            </div>
+                                            <span class="text-[10px] font-bold">{{ log.fatigue_level }}/10</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        {% set risk = prediction.history_risk_map.get(log.entry_date, 0) %}
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold {% if risk >= 70 %}text-red-500{% elif risk >= 35 %}text-amber-500{% else %}text-primary{% endif %}">{{ risk }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="px-6 py-8 text-center text-slate-500">No wellness data logged
+                                        yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 bg-slate-50 dark:bg-primary/5 flex items-center justify-center">
+                        <button class="text-xs font-bold text-primary hover:underline">Load older history
+                            records</button>
+                    </div>
+                </div>
+                <!-- Footer Summary Info -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 border-t border-slate-200 dark:border-primary/5">
+                    <div>
+                        <h4 class="text-xs font-black uppercase text-slate-500 dark:text-primary/60 mb-2">Analysis
+                            Insight</h4>
+                        <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                            {{ prediction.insight_message|safe }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>
