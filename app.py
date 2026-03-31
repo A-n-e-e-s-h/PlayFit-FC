@@ -7,7 +7,9 @@ import pandas as pd
 import io
 import sys
 import os
-from datetime import date
+import subprocess
+import threading
+from datetime import date, datetime, timedelta
 sys.path.append(os.path.join(os.path.dirname(__file__), 'ml'))
 from ml_service import get_player_prediction, get_predictive_logic
 
@@ -24,19 +26,48 @@ def get_db_connection():
     return conn
 
 class User(UserMixin):
-    def __init__(self, id, username, role, team_code=None):
+    def __init__(self, id, username, role, team_code=None, team_name=None, squad=None, sport=None, login_count=0):
         self.id = id
         self.username = username
         self.role = role
         self.team_code = team_code
+        self.team_name = team_name
+        self.squad = squad
+        self.sport = sport
+        self.login_count = login_count
 
 @login_manager.user_loader
 def load_user(user_id):
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
-    conn.close()
-    if user:
-        return User(id=user['user_id'], username=user['username'], role=user['role'], team_code=user['team_code'])
+    try:
+        user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        if user:
+            t_name = user['team_name']
+            t_code = user['team_code']
+            role = user['role']
+            sport = user['sport']
+            squad = None
+            
+            if role == 'player':
+                # Get squad from players table
+                player_row = conn.execute('SELECT squad FROM players WHERE user_id = ?', (user_id,)).fetchone()
+                if player_row:
+                    squad = player_row['squad']
+                
+                # If team_name/sport is missing, look up from coach
+                if t_code:
+                    coach = conn.execute('SELECT team_name, sport FROM users WHERE team_code = ? AND role = "coach" LIMIT 1', (t_code,)).fetchone()
+                    if coach:
+                        if not t_name: t_name = coach['team_name']
+                        if not sport: sport = coach['sport']
+            
+            login_count = user['login_count']
+            
+            return User(id=user['user_id'], username=user['username'], role=role, team_code=t_code, team_name=t_name, squad=squad, sport=sport, login_count=login_count)
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
     return None
 
 @app.route('/')
@@ -51,9 +82,22 @@ def signup():
         password = request.form.get('password')
         role = request.form.get('role') # 'coach' or 'player'
         team_code = request.form.get('team_code', '').strip()
+        team_name = request.form.get('team_name', '').strip() if role == 'coach' else None
+        sport = request.form.get('sport', '').strip() if role == 'coach' else None
+        age = request.form.get('age') if role == 'player' else None
+        position = request.form.get('position') if role == 'player' else None
+        experience_years = request.form.get('experience_years') if role == 'player' else None
 
-        if not username or not password or not role:
+        if not username or not password or not role or not full_name:
             flash('Please fill in all basic required fields', 'error')
+            return redirect(url_for('signup'))
+            
+        if role == 'coach' and (not team_name or not team_code):
+            flash('Coaches must provide a Team Name and Team Code', 'error')
+            return redirect(url_for('signup'))
+            
+        if role == 'player' and (not age or not position or not team_code):
+            flash('Players must provide an Age, Position, and Team Code', 'error')
             return redirect(url_for('signup'))
 
         hashed_password = generate_password_hash(password)
@@ -67,17 +111,14 @@ def signup():
                 return redirect(url_for('signup'))
 
             cursor = conn.cursor()
-            cursor.execute('INSERT INTO users (username, password, role, team_code) VALUES (?, ?, ?, ?)',
-                           (username, hashed_password, role, team_code))
+            cursor.execute('INSERT INTO users (username, password, role, team_code, team_name, sport) VALUES (?, ?, ?, ?, ?, ?)',
+                           (username, hashed_password, role, team_code, team_name, sport))
             user_id = cursor.lastrowid
             
             # If player, also create a record in the players table
             if role == 'player':
-                age = request.form.get('age')
-                position = request.form.get('position')
-                experience_years = request.form.get('experience_years')
                 cursor.execute('INSERT INTO players (user_id, name, age, position, experience_years) VALUES (?, ?, ?, ?, ?)',
-                               (user_id, full_name if full_name else username, age, position, experience_years))
+                               (user_id, full_name, age, position, experience_years))
             
             conn.commit()
             flash('Account created successfully! Please log in.', 'success')
@@ -94,18 +135,54 @@ def signin():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        selected_role = request.form.get('user_role', '').lower()
 
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-        conn.close()
+        try:
+            user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
 
-        if user and check_password_hash(user['password'], password):
-            user_obj = User(id=user['user_id'], username=user['username'], role=user['role'])
-            user_obj.team_code = user['team_code'] # Bind dynamically upon login
-            login_user(user_obj)
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password', 'error')
+            if user and check_password_hash(user['password'], password):
+                if user['role'] != selected_role:
+                    flash('Invalid username or password', 'error')
+                    return redirect(url_for('signin'))
+
+                user_obj = User(id=user['user_id'], username=user['username'], role=user['role'], sport=user['sport'], login_count=user['login_count'])
+                user_obj.team_code = user['team_code'] # Bind dynamically upon login
+
+                # Increment login_count in DB
+                conn.execute('UPDATE users SET login_count = login_count + 1 WHERE user_id = ?', (user['user_id'],))
+                conn.commit()
+                # Update object to match current (incremented) state for the dashboard render
+                user_obj.login_count += 1
+                
+                # Map Team Name & Squad & Sport Inheritance
+                squad = None
+                if user['role'] == 'coach':
+                    user_obj.team_name = user['team_name'] if user['team_name'] else "Coach Mode"
+                else:
+                    # Get squad from players table
+                    player_row = conn.execute('SELECT squad FROM players WHERE user_id = ?', (user['user_id'],)).fetchone()
+                    if player_row:
+                        squad = player_row['squad']
+                        
+                    if user['team_code']:
+                        coach = conn.execute('SELECT team_name, sport FROM users WHERE team_code = ? AND role = "coach" LIMIT 1', (user['team_code'],)).fetchone()
+                        if coach:
+                            user_obj.team_name = coach['team_name'] if coach['team_name'] else "Independent Athlete"
+                            if not user_obj.sport:
+                                user_obj.sport = coach['sport']
+                        else:
+                            user_obj.team_name = "Independent Athlete"
+                    else:
+                        user_obj.team_name = "Independent Athlete"
+                
+                user_obj.squad = squad
+                login_user(user_obj)
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Invalid username or password', 'error')
+        finally:
+            conn.close()
 
     return render_template('signin.html')
 
@@ -113,6 +190,8 @@ def signin():
 @login_required
 def dashboard():
     if current_user.role == 'coach':
+        page = request.args.get('page', 1, type=int)
+        PER_PAGE = 5
         conn = get_db_connection()
         try:
             # Fetch players with the same team code as the coach
@@ -200,11 +279,11 @@ def dashboard():
             elif high_risk_count == 0:
                 risk_trend = 0
 
-            # --- Workload vs Fatigue SVG Chart (Last 7 Days) ---
-            past_7 = today - pd.Timedelta(days=7)
+            # --- Dynamic Workload vs Fatigue SVG Chart (Last 30 Days) ---
+            past_30 = today - pd.Timedelta(days=30)
             
-            # Fetch daily team averages for fatigue
-            fatigue_7d = conn.execute('''
+            # Fetch daily team averages for fatigue (last 30 days)
+            fatigue_all = conn.execute('''
                 SELECT wd.entry_date, AVG(wd.fatigue_level) as avg_fatigue
                 FROM wellness_data wd
                 JOIN players p ON wd.player_id = p.player_id
@@ -212,12 +291,10 @@ def dashboard():
                 WHERE u.team_code = ? AND wd.entry_date >= ?
                 GROUP BY wd.entry_date
                 ORDER BY wd.entry_date ASC
-            ''', (current_user.team_code, past_7.strftime('%Y-%m-%d'))).fetchall()
+            ''', (current_user.team_code, past_30.strftime('%Y-%m-%d'))).fetchall()
             
-            # Fetch daily team averages for workload (training minutes)
-            # We must sum the minutes PER PLAYER for a given day first (since a player might have both match and training entries)
-            # Then we average those total daily player workloads.
-            workload_7d = conn.execute('''
+            # Fetch daily team averages for workload (last 30 days)
+            workload_all = conn.execute('''
                 WITH PlayerDailyWorkload AS (
                     SELECT 
                         td.training_date, 
@@ -235,21 +312,32 @@ def dashboard():
                 FROM PlayerDailyWorkload
                 GROUP BY training_date
                 ORDER BY training_date ASC
-            ''', (current_user.team_code, past_7.strftime('%Y-%m-%d'))).fetchall()
+            ''', (current_user.team_code, past_30.strftime('%Y-%m-%d'))).fetchall()
             
             # Create dictionaries mapped by date
-            fatigue_dict = {row['entry_date']: row['avg_fatigue'] for row in fatigue_7d}
-            workload_dict = {row['training_date']: row['avg_workload'] for row in workload_7d}
+            fatigue_dict = {row['entry_date']: row['avg_fatigue'] for row in fatigue_all}
+            workload_dict = {row['training_date']: row['avg_workload'] for row in workload_all}
             
-            # Generate exactly 7 days of points 
+            # Combine unique dates and sort chronologically
+            all_dates = sorted(list(set(fatigue_dict.keys()).union(set(workload_dict.keys()))))
+            if not all_dates:
+                 all_dates = [today.strftime('%Y-%m-%d')] # Fallback to today if no data
+            
+            # Cap to the most recent 14 data points for readable chart display
+            all_dates = list(all_dates)[-14:]
+                 
             chart_labels = []
             fatigue_points = []
             workload_points = []
+            num_points = len(all_dates)
             
-            for i in range(7):
-                d = past_7 + pd.Timedelta(days=i)
-                date_str = d.strftime('%Y-%m-%d')
-                label_str = d.strftime('%a').upper() # MON, TUE, etc
+            for i, date_str in enumerate(all_dates):
+                try:
+                    d = pd.to_datetime(date_str)
+                    label_str = d.strftime('%b %d')  # e.g. Mar 25
+                except Exception:
+                    label_str = date_str
+                    
                 chart_labels.append(label_str)
                 
                 f_val = fatigue_dict.get(date_str, 5.0) # default mid fatigue
@@ -261,8 +349,11 @@ def dashboard():
                 # Workload scaling: (0-120 mins) -> (150-0) [Inverted Y] -> 150 - (w_val)
                 w_y = max(10, 150 - w_val)
                 
-                # X coordinate: 0 to 400 spacing for 7 elements = 400 / 6 = ~66.6
-                x = i * (400.0 / 6.0)
+                # X coordinate: Dynamic spacing across 400px
+                if num_points <= 1:
+                    x = 200.0 # Center point if only 1 day of data
+                else:
+                    x = i * (400.0 / (num_points - 1))
                 
                 fatigue_points.append({'x': x, 'y': f_y})
                 workload_points.append({'x': x, 'y': w_y})
@@ -279,19 +370,43 @@ def dashboard():
             workload_svg_path = build_svg_path(workload_points)
 
             # --- Risk Alerts for Sidebar ---
+            # Only show players who are genuinely at risk (High risk level or score > 50)
             risk_alerts = []
             for player in team_players:
-                    risk_val = float(str(player.get('risk_score', 0)))
-                    alert = {
-                        'type': 'CRITICAL FATIGUE' if risk_val > 75 else 'RECOVERY NEEDED',
+                risk_level = str(player.get('risk_level', 'Low'))
+                risk_val = float(str(player.get('risk_score', 0)))
+                
+                # Only flag players that are actually at risk
+                if risk_level == 'High' or risk_val > 50:
+                    if risk_val > 75:
+                        alert_type = 'CRITICAL FATIGUE'
+                    else:
+                        alert_type = 'RECOVERY NEEDED'
+                    
+                    last_session = str(player.get('last_session', 'N/A'))
+                    alert_time = 'Today' if last_session == str(today_str) else last_session
+                    
+                    risk_alerts.append({
+                        'type': alert_type,
                         'player_name': str(player.get('name', 'Unknown')),
-                        'message': f"{player.get('name', 'Unknown')} reached high risk probability ({risk_val}%)",
-                        'time': str(today_str) if str(player.get('last_session')) == str(today_str) else str(player.get('last_session', 'N/A'))
-                    }
-                    risk_alerts.append(alert)
+                        'message': f"{player.get('name', 'Unknown')} has elevated injury risk ({risk_val:.0f}%)",
+                        'time': alert_time
+                    })
+            
+            # --- Final Pagination ---
+            total_pages = max(1, (total_players + PER_PAGE - 1) // PER_PAGE)
+            current_page = max(1, min(page, total_pages))
+            
+            start_idx = (current_page - 1) * PER_PAGE
+            end_idx = start_idx + PER_PAGE
+            paginated_players = team_players[start_idx:end_idx]
+            
+            # Display range for UI
+            start_count = start_idx + 1 if total_players > 0 else 0
+            end_count = min(end_idx, total_players)
 
         except sqlite3.Error as e:
-            team_players = []
+            paginated_players = []
             total_players = 0
             high_risk_count = 0
             avg_team_fatigue = 0
@@ -302,27 +417,42 @@ def dashboard():
             chart_labels = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
             fatigue_svg_path = "M 0 140 L 400 140"
             workload_svg_path = "M 0 130 L 400 130"
+            current_page = 1
+            total_pages = 1
+            start_count = 0
+            end_count = 0
         finally:
             conn.close()
-        return render_template('coach dashboard.html', user=current_user, team_players=team_players, 
+        return render_template('coach dashboard.html', user=current_user, team_players=paginated_players, 
                                total_players=total_players, high_risk_count=high_risk_count, avg_team_fatigue=avg_team_fatigue,
                                total_players_trend=total_players_trend, risk_trend=risk_trend, fatigue_trend=fatigue_trend,
                                chart_labels=chart_labels, fatigue_svg_path=fatigue_svg_path, workload_svg_path=workload_svg_path,
-                               risk_alerts=risk_alerts)
+                               risk_alerts=risk_alerts, current_page=current_page, total_pages=total_pages,
+                               start_count=start_count, end_count=end_count)
     else:
-        prediction = get_player_prediction(current_user.id)
-        
         has_logged_today = False
         notifications = []
+        # Initial default prediction state
+        prediction = {
+            "risk_score": 0, "risk_level": "Loading...", "recommendation": "Calculating your latest risk profile...",
+            "days_injury_free": "N/A", "avg_sleep": "0h 0m", "avg_soreness": "0.0/10",
+            "history_svg_path": "M0,100 L400,100", "history_labels": [""] * 5,
+            "period": 30, "history_risk_map": {}, "insight_message": "Fetching data...",
+            "history_points": [], "recommendation_list": []
+        }
+        
         conn = get_db_connection()
         try:
             player = conn.execute('SELECT player_id FROM players WHERE user_id = ?', (current_user.id,)).fetchone()
             if player:
+                p_id = player['player_id']
+                prediction = get_player_prediction(p_id)
+                
                 today = date.today().isoformat()
-                entry = conn.execute('SELECT 1 FROM wellness_data WHERE player_id = ? AND entry_date = ?', (player['player_id'], today)).fetchone()
+                entry = conn.execute('SELECT 1 FROM wellness_data WHERE player_id = ? AND entry_date = ?', (p_id, today)).fetchone()
                 has_logged_today = bool(entry)
                 
-                notifications_db = conn.execute('SELECT id, message, created_at FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (player['player_id'],)).fetchall()
+                notifications_db = conn.execute('SELECT id, message, created_at FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
                 notifications = [dict(row) for row in notifications_db]
         except sqlite3.Error:
             pass
@@ -362,6 +492,8 @@ def submit_wellness():
         if player:
             conn.execute('INSERT INTO wellness_data (player_id, fatigue_level, sleep_quality, muscle_soreness, entry_date) VALUES (?, ?, ?, ?, ?)',
                          (player['player_id'], fatigue_level, sleep_quality, muscle_soreness, date.today().isoformat()))
+            # Mark player for re-prediction
+            conn.execute('UPDATE players SET prediction_ready = 1 WHERE player_id = ?', (player['player_id'],))
             conn.commit()
             flash('Wellness data saved successfully!', 'success')
     except sqlite3.Error as e:
@@ -381,9 +513,19 @@ def player_management():
         
     conn = get_db_connection()
     try:
+        # Get all unique squads for the team
+        squad_rows = conn.execute('''
+            SELECT DISTINCT p.squad 
+            FROM players p
+            JOIN users u ON p.user_id = u.user_id
+            WHERE u.team_code = ? AND p.squad IS NOT NULL AND p.squad != 'none'
+        ''', (current_user.team_code,)).fetchall()
+        
+        available_squads = [s['squad'] for s in squad_rows]
+
         # Fetch players with the same team code as the coach
         team_players_db = conn.execute('''
-            SELECT p.*, u.username 
+            SELECT p.*, u.username, p.squad
             FROM players p
             JOIN users u ON p.user_id = u.user_id
             WHERE u.team_code = ? AND u.role = 'player'
@@ -425,9 +567,10 @@ def player_management():
             
             # Fetch 35 days of individual workload (training minutes) for rolling averages
             workload_35d = conn.execute('''
-                SELECT training_date, training_minutes as workload
+                SELECT training_date, SUM(training_minutes) as workload
                 FROM training_data
                 WHERE player_id = ? AND training_date >= ?
+                GROUP BY training_date
                 ORDER BY training_date ASC
             ''', (selected_player['player_id'], past_35.strftime('%Y-%m-%d'))).fetchall()
             
@@ -463,13 +606,19 @@ def player_management():
             # --- Workload Trends Chart Data (Last 7 Days) ---
             chart_data = [] 
             display_slice = df_workload.tail(7)
+            
+            # Dynamically calculate the maximum load in the current window for visual scaling
+            # Fallback to 60 if max is 0 to avoid division by zero or invisible bars
+            window_max = max(display_slice['acute_load'].max(), display_slice['chronic_load'].max())
+            max_load = window_max if window_max > 0 else 60.0
+            
             for _, row in display_slice.iterrows():
                 d_obj = pd.to_datetime(row['training_date'])
                 label_str = d_obj.strftime('%a').capitalize()
                 
-                # Normalize values into percentage heights for the UI bars (max ~120 mins = 100%)
-                acute_pct = min(100, (row['acute_load'] / 120.0) * 100)
-                chronic_pct = min(100, (row['chronic_load'] / 120.0) * 100)
+                # Normalize values into percentage heights using the dynamic max_load
+                acute_pct = min(100, (row['acute_load'] / max_load) * 100)
+                chronic_pct = min(100, (row['chronic_load'] / max_load) * 100)
                 
                 # Add highlighting properties if acute significantly outpaces chronic
                 # ACWR > 1.3 is generally the danger zone in sports science
@@ -498,7 +647,44 @@ def player_management():
     return render_template('player management.html', user=current_user, team_players=team_players, 
                            selected_player=selected_player, prediction=prediction, 
                            sleep_data=sleep_data, soreness_data=soreness_data, acwr=acwr, chart_data=chart_data,
-                           predictive_logic=predictive_logic)
+                           predictive_logic=predictive_logic, available_squads=available_squads)
+
+@app.route('/assign_squad', methods=['POST'])
+@login_required
+def assign_squad():
+    if current_user.role != 'coach':
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('dashboard'))
+        
+    player_id = request.form.get('player_id')
+    squad_name = request.form.get('squad_name')
+    
+    if not player_id or not squad_name:
+        flash('Missing parameters.', 'error')
+        return redirect(url_for('player_management'))
+        
+    conn = get_db_connection()
+    try:
+        # Verify the coach has access to this player
+        player_check = conn.execute('''
+            SELECT p.player_id 
+            FROM players p 
+            JOIN users u ON p.user_id = u.user_id 
+            WHERE p.player_id = ? AND u.team_code = ?
+        ''', (player_id, current_user.team_code)).fetchone()
+        
+        if player_check:
+            conn.execute('UPDATE players SET squad = ? WHERE player_id = ?', (squad_name, player_id))
+            conn.commit()
+            flash('Squad assigned successfully!', 'success')
+        else:
+            flash('Player not found in your team.', 'error')
+    except Exception as e:
+        flash(f'An error occurred: {str(e)}', 'error')
+    finally:
+        conn.close()
+        
+    return redirect(url_for('player_management', player_id=player_id))
 
 @app.route('/notify_player', methods=['POST'])
 @login_required
@@ -569,6 +755,16 @@ def data_entry():
     
     conn = get_db_connection()
     try:
+        # Get all unique squads for the team
+        squad_rows = conn.execute('''
+            SELECT DISTINCT p.squad 
+            FROM players p
+            JOIN users u ON p.user_id = u.user_id
+            WHERE u.team_code = ? AND p.squad IS NOT NULL AND p.squad != 'none'
+        ''', (current_user.team_code,)).fetchall()
+        
+        available_squads = [s['squad'] for s in squad_rows]
+
         # Fetch squad members for this coach's team
         players_db = conn.execute('''
             SELECT p.*, u.username 
@@ -617,7 +813,8 @@ def data_entry():
     finally:
         conn.close()
         
-    return render_template('data entry.html', user=current_user, squad=squad)
+    today_date = date.today().strftime('%Y-%m-%d')
+    return render_template('data entry.html', user=current_user, squad=squad, today_date=today_date, available_squads=available_squads)
 
 @app.route('/analytics')
 @login_required
@@ -625,7 +822,225 @@ def analytics():
     if current_user.role != 'coach':
         flash('Unauthorized access', 'error')
         return redirect(url_for('dashboard'))
-    return render_template('analytics.html', user=current_user)
+    
+    selected_squad = request.args.get('squad', 'all')
+    
+    conn = get_db_connection()
+    try:
+        # Get all unique squads for the team
+        squad_rows = conn.execute('''
+            SELECT DISTINCT p.squad 
+            FROM players p
+            JOIN users u ON p.user_id = u.user_id
+            WHERE u.team_code = ? AND p.squad IS NOT NULL AND p.squad != 'none'
+        ''', (current_user.team_code,)).fetchall()
+        
+        available_squads = [s['squad'] for s in squad_rows]
+
+        # 1. Fetch team players
+        query = '''
+            SELECT p.*, u.username 
+            FROM players p
+            JOIN users u ON p.user_id = u.user_id
+            WHERE u.team_code = ? AND u.role = 'player'
+        '''
+        params = [current_user.team_code]
+        
+        if selected_squad != 'all':
+            query += ' AND p.squad = ?'
+            params.append(selected_squad)
+            
+        rows = conn.execute(query, params).fetchall()
+        
+        team_players = [dict(r) for r in rows]
+        
+        # 2. Calculate current metrics
+        total_risk = 0
+        high_risk_count = 0
+        active_injuries = 0
+        
+        for p in team_players:
+            pred = get_player_prediction(p['player_id'])
+            p['risk_score'] = pred.get('risk_score', 0)
+            p['risk_level'] = pred.get('risk_level', 'Low')
+            
+            total_risk += p['risk_score']
+            if p['risk_level'] == 'High':
+                high_risk_count += 1
+                
+            # Check latest participation status
+            latest_status = conn.execute('''
+                SELECT participation_status FROM training_data 
+                WHERE player_id = ? 
+                ORDER BY training_date DESC, training_id DESC LIMIT 1
+            ''', (p['player_id'],)).fetchone()
+            
+            if latest_status and latest_status['participation_status'] == 'No Participation':
+                active_injuries += 1
+                
+            # Scatter Plot Data Collection
+            wellness_row = conn.execute('''
+                SELECT fatigue_level FROM wellness_data 
+                WHERE player_id = ? ORDER BY entry_date DESC LIMIT 1
+            ''', (p['player_id'],)).fetchone()
+            
+            try:
+                fatigue_level = int(wellness_row['fatigue_level']) if wellness_row else 5
+            except (ValueError, TypeError):
+                fatigue_level = 5
+            p['fatigue_index'] = (fatigue_level / 10.0) * 100
+            
+            injury_count = conn.execute('''
+                SELECT COUNT(*) as count FROM injury_history 
+                WHERE player_id = ?
+            ''', (p['player_id'],)).fetchone()
+            p['injuries'] = injury_count['count'] if injury_count else 0
+        
+        avg_risk = round(total_risk / len(team_players), 1) if team_players else 0
+        
+        # Build Scatter Data & Position Risk
+        scatter_data = []
+        max_injuries = max([p.get('injuries', 0) for p in team_players]) if team_players else 0
+        
+        position_data = {
+            'Forward': {'total_risk': 0, 'count': 0},
+            'Midfielder': {'total_risk': 0, 'count': 0},
+            'Defender': {'total_risk': 0, 'count': 0},
+            'Goalkeeper': {'total_risk': 0, 'count': 0}
+        }
+        
+        for p in team_players:
+            risk_level = p.get('risk_level', 'Low')
+            if risk_level == 'High':
+                color_class = 'bg-red-500 ring-red-500/20'
+                status_label = 'CRITICAL'
+                size_class = 'size-4 z-10'
+            elif risk_level == 'Medium':
+                color_class = 'bg-orange-400 ring-orange-400/20'
+                status_label = 'Elevated'
+                size_class = 'size-3'
+            else:
+                color_class = 'bg-primary ring-primary/20'
+                status_label = 'Optimal'
+                size_class = 'size-3'
+
+            y_pos = 10 + (p['injuries'] / max_injuries) * 75 if max_injuries > 0 else 10
+            x_pos = min(max(p.get('fatigue_index', 50), 5), 95) # clamp to 5-95%
+            
+            scatter_data.append({
+                'name': p.get('name', p.get('username', 'Unknown')),
+                'fatigue_index': p.get('fatigue_index', 50),
+                'injuries': p.get('injuries', 0),
+                'color_class': color_class,
+                'status_label': status_label,
+                'size_class': size_class,
+                'bottom_pct': y_pos,
+                'left_pct': x_pos
+            })
+            
+            # Position Data Collection
+            pos = str(p.get('position', '')).lower()
+            if 'forward' in pos or 'striker' in pos or 'winger' in pos or 'attack' in pos:
+                cat = 'Forward'
+            elif 'defen' in pos or 'back' in pos:
+                cat = 'Defender'
+            elif 'goal' in pos or 'keeper' in pos or pos == 'gk':
+                cat = 'Goalkeeper'
+            else:
+                cat = 'Midfielder'
+                
+            position_data[cat]['total_risk'] += p.get('risk_score', 0)
+            position_data[cat]['count'] += 1
+            
+        # Calculate Position Risk Array
+        position_risk = []
+        highest_risk_pos = None
+        highest_risk_val = -1
+        
+        for pos_name, data in position_data.items():
+            avg_risk = int(data['total_risk'] / data['count']) if data['count'] > 0 else 0
+            
+            if avg_risk > 65:
+                color = 'bg-red-500'
+            elif avg_risk > 35:
+                color = 'bg-orange-400'
+            else:
+                color = 'bg-primary'
+                
+            display_name = pos_name + 's'
+            
+            position_risk.append({
+                'name': display_name,
+                'risk_pct': avg_risk,
+                'color': color
+            })
+            
+            if avg_risk > highest_risk_val and data['count'] > 0:
+                highest_risk_val = avg_risk
+                highest_risk_pos = display_name
+                
+        # Generate insight text
+        if highest_risk_pos and highest_risk_val > 50:
+            insight_text = f'"{highest_risk_pos} show an elevated average risk of {highest_risk_val}%. Correlation suggests a lighter recovery session for this unit before the next fixture."'
+            insight_icon = 'warning'
+            insight_color = 'text-orange-400'
+        elif highest_risk_pos and highest_risk_val > 0:
+            insight_text = f'"Overall squad risk is manageable. {highest_risk_pos} have the highest relative risk at {highest_risk_val}%, but remain within safe thresholds."'
+            insight_icon = 'health_and_safety'
+            insight_color = 'text-primary'
+        else:
+            insight_text = '"Insufficient data to generate positional insights."'
+            insight_icon = 'info'
+            insight_color = 'text-slate-400'
+            
+        insight_data = {
+            'text': insight_text,
+            'icon': insight_icon,
+            'color': insight_color
+        }
+        
+        # 3. Recovery Timeline (Avg from injury history)
+        recovery_query = '''
+            SELECT AVG(ih.recovery_days) as avg_rec
+            FROM injury_history ih
+            JOIN players p ON ih.player_id = p.player_id
+            JOIN users u ON p.user_id = u.user_id
+            WHERE u.team_code = ?
+        '''
+        rec_params = [current_user.team_code]
+        if selected_squad != 'all':
+            recovery_query += ' AND p.squad = ?'
+            rec_params.append(selected_squad)
+            
+        recovery_data = conn.execute(recovery_query, rec_params).fetchone()
+        
+        avg_recovery = round(recovery_data['avg_rec'], 1) if recovery_data and recovery_data['avg_rec'] else 0
+        
+        # Trends (simplified logic for now)
+        risk_trend = 3 # Placeholder trend
+        injury_trend = 1 # Placeholder trend
+        
+        stats = {
+            'avg_risk': avg_risk,
+            'risk_trend': risk_trend,
+            'active_injuries': active_injuries,
+            'injury_trend': injury_trend,
+            'high_risk_count': high_risk_count,
+            'avg_recovery': avg_recovery
+        }
+        
+    except Exception as e:
+        print(f"Error in analytics: {e}")
+        stats = {'avg_risk': 0, 'risk_trend': 0, 'active_injuries': 0, 'injury_trend': 0, 'high_risk_count': 0, 'avg_recovery': 0}
+        scatter_data = []
+        position_risk = []
+        insight_data = {'text': '', 'icon': '', 'color': ''}
+    finally:
+        conn.close()
+
+    return render_template('analytics.html', user=current_user, stats=stats, scatter_data=scatter_data, 
+                           position_risk=position_risk, insight_data=insight_data, 
+                           available_squads=available_squads, selected_squad=selected_squad)
 
 @app.route('/history')
 @login_required
@@ -635,16 +1050,17 @@ def history():
         return redirect(url_for('dashboard'))
         
     period = request.args.get('period', 30, type=int)
-    prediction = get_player_prediction(current_user.id, period=period)
-    
     conn = get_db_connection()
     try:
         player = conn.execute('SELECT player_id FROM players WHERE user_id = ?', (current_user.id,)).fetchone()
-        if player:
-            wellness_logs = conn.execute('SELECT * FROM wellness_data WHERE player_id = ? ORDER BY entry_date DESC LIMIT ?', (player['player_id'], period)).fetchall()
-        else:
-            wellness_logs = []
+        if not player:
+            return _get_default_response(period, "Player profile not found.")
+        
+        p_id = player['player_id']
+        prediction = get_player_prediction(p_id, period=period)
+        wellness_logs = conn.execute('SELECT * FROM wellness_data WHERE player_id = ? ORDER BY entry_date DESC LIMIT ?', (p_id, period)).fetchall()
     except sqlite3.Error:
+        prediction = _get_default_response(period, "Error accessing history.")
         wellness_logs = []
     finally:
         conn.close()
@@ -672,9 +1088,13 @@ def coach_player_dashboard(player_id):
             flash('Player not found or not in your team.', 'error')
             return redirect(url_for('dashboard'))
             
-        prediction = get_player_prediction(player['user_id'])
+        # Get squad for the player
+        squad_row = conn.execute('SELECT squad FROM players WHERE player_id = ?', (player_id,)).fetchone()
+        p_squad = squad_row['squad'] if squad_row else None
+        
+        prediction = get_player_prediction(player_id)
         # Create a mock user object for the template to render the player's name
-        mock_player_user = User(id=player['user_id'], username=player['username'], role='player')
+        mock_player_user = User(id=player['user_id'], username=player['username'], role='player', team_name=current_user.team_name, squad=p_squad)
         
     finally:
         conn.close()
@@ -704,10 +1124,14 @@ def coach_player_history(player_id):
             flash('Player not found or not in your team.', 'error')
             return redirect(url_for('dashboard'))
             
-        prediction = get_player_prediction(player['user_id'], period=period)
+        # Get squad for the player
+        squad_row = conn.execute('SELECT squad FROM players WHERE player_id = ?', (player_id,)).fetchone()
+        p_squad = squad_row['squad'] if squad_row else None
+        
+        prediction = get_player_prediction(player_id, period=period)
         wellness_logs = conn.execute('SELECT * FROM wellness_data WHERE player_id = ? ORDER BY entry_date DESC LIMIT ?', (player_id, period)).fetchall()
         
-        mock_player_user = User(id=player['user_id'], username=player['username'], role='player')
+        mock_player_user = User(id=player['user_id'], username=player['username'], role='player', team_name=current_user.team_name, squad=p_squad)
     except sqlite3.Error:
         wellness_logs = []
         mock_player_user = current_user
@@ -750,20 +1174,24 @@ def session_history():
                 item['technical_intensity'] = row['intensity'] if 'Match' not in row['session_type'] else None
                 item['match_mins'] = row['training_minutes'] if 'Match' in row['session_type'] else None
                 item['match_freq'] = row['sessions_per_week'] if 'Match' in row['session_type'] else None
+                item['active_injury'] = row['previous_injury'] if 'Match' in row['session_type'] else None
                 
                 seen[key] = len(history)
                 history.append(item)
             else:
-                # Update existing entry with missing data
+                # Update existing entry with missing data (only if not already set, to prioritize newest sessions)
                 idx = seen[key]
                 item = history[idx]
                 if 'Match' not in row['session_type']:
-                    item['technical_mins'] = row['training_minutes']
-                    item['technical_freq'] = row['sessions_per_week']
-                    item['technical_intensity'] = row['intensity']
+                    if item.get('technical_mins') is None:
+                        item['technical_mins'] = row['training_minutes']
+                        item['technical_freq'] = row['sessions_per_week']
+                        item['technical_intensity'] = row['intensity']
                 else:
-                    item['match_mins'] = row['training_minutes']
-                    item['match_freq'] = row['sessions_per_week']
+                    if item.get('match_mins') is None:
+                        item['match_mins'] = row['training_minutes']
+                        item['match_freq'] = row['sessions_per_week']
+                        item['active_injury'] = row['previous_injury']
         
     except sqlite3.Error as e:
         history = []
@@ -773,13 +1201,44 @@ def session_history():
         
     return render_template('session_history.html', user=current_user, history=history)
 
+@app.route('/clear_history', methods=['POST'])
+@login_required
+def clear_history():
+    if current_user.role != 'coach':
+        return {"error": "Unauthorized access"}, 403
+    
+    conn = get_db_connection()
+    try:
+        # We clear the entire table as requested for now
+        # In a multi-tenant app, we'd filter by player_id belonging to the coach's team
+        conn.execute('DELETE FROM training_data')
+        conn.commit()
+        flash('Session history cleared successfully.', 'success')
+        return redirect(url_for('session_history'))
+    except sqlite3.Error as e:
+        flash(f'Error clearing history: {str(e)}', 'error')
+        return redirect(url_for('session_history'))
+    finally:
+        conn.close()
+
 @app.route('/guide')
 @login_required
 def guide():
     if current_user.role != 'player':
         flash('Unauthorized access', 'error')
         return redirect(url_for('dashboard'))
-    prediction = get_player_prediction(current_user.id)
+    
+    conn = get_db_connection()
+    try:
+        player = conn.execute('SELECT player_id FROM players WHERE user_id = ?', (current_user.id,)).fetchone()
+        if not player:
+            return _get_default_response(30, "Player profile not found.")
+        prediction = get_player_prediction(player['player_id'])
+    except sqlite3.Error:
+        prediction = _get_default_response(30, "Error accessing profile.")
+    finally:
+        conn.close()
+        
     return render_template('guide.html', user=current_user, prediction=prediction)
 
 @app.route('/signout')
@@ -835,9 +1294,14 @@ def save_session_data():
             ma_mins = ma.get('minutes', '')
             if ma_mins and ma_mins != '0':
                 cursor.execute('''
-                    INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (player_id, ma_mins, None, ma.get('matches', 0), session_date, status, 'Match Details'))
+                    INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type, previous_injury)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (player_id, ma_mins, None, ma.get('matches', 0), session_date, status, 'Match Details', ma.get('active_injury', 'No')))
+        
+        # Mark all affected players for re-prediction
+        affected_player_ids = list(set([p.get('player_id') for p in players_data if p.get('player_id')]))
+        if affected_player_ids:
+            cursor.executemany('UPDATE players SET prediction_ready = 1 WHERE player_id = ?', [(pid,) for pid in affected_player_ids])
         
         conn.commit()
         return {"success": True}

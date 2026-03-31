@@ -1,0 +1,262 @@
+[
+    {
+        "name": "Ankle Dorsiflexion Stretch (Wall Drill)",
+        "video": "/static/videos/angle dorsiflexion.mp4",
+        "description": "Improves ankle mobility to prevent calf strains and knee injuries.",
+        "steps": [
+            "Stand facing a wall with one foot forward.",
+            "Keep your heel on the ground.",
+            "Drive your knee forward toward the wall.",
+            "Hold for 2 seconds and return."
+        ],
+        "mistakes": [
+            "Lifting the heel off the ground.",
+            "Letting the knee cave inward."
+        ],
+        "muscles": ["Gastrocnemius", "Soleus", "Tibialis Anterior"],
+        "sets_reps": "3 sets of 10 reps per side",
+        "difficulty": "Beginner",
+        "when": "Before training",
+        "category": "mobility"
+    },
+    {
+        "name": "Box Breathing Recovery",
+        "video": "/static/videos/box breathing.mp4",
+        "description": "Regulates the nervous system to accelerate recovery and reduce cortisol.",
+        "steps": [
+            "Inhale deeply for 4 seconds.",
+            "Hold your breath for 4 seconds.",
+            "Exhale slowly for 4 seconds.",
+            "Hold empty for 4 seconds."
+        ],
+        "mistakes": [
+            "Taking shallow chest breaths.",
+            "Rushing the counts."
+        ],
+        "muscles": ["Diaphragm", "Core"],
+        "sets_reps": "3-5 minutes",
+        "difficulty": "Beginner",
+        "when": "Recovery / Rehab",
+        "category": "sleep"
+    },
+    {
+        "name": "Weighted Calf Raises",
+        "video": "/static/videos/calf raises.mp4",
+        "description": "Strengthens the lower leg to prevent Achilles tendonitis and ankle sprains.",
+        "steps": [
+            "Stand with feet hip-width apart.",
+            "Slowly push up onto the balls of your feet.",
+            "Pause at the top and squeeze the calf.",
+            "Lower back down with control."
+        ],
+        "mistakes": [
+            "Bouncing at the bottom.",
+            "Using momentum rather than muscle."
+        ],
+        "muscles": ["Gastrocnemius", "Soleus"],
+        "sets_reps": "3 sets of 15 reps",
+        "difficulty": "Beginner",
+        "when": "After training",
+        "category": "injury"
+    },
+    {
+        "name": "Copenhagen Plank",
+        "video": "/static/videos/copenhagen plank.mp4",
+        "description": "The gold standard for groin (adductor) injury prevention.",
+        "steps": [
+            "Place top foot on a bench in a side plank position.",
+            "Lift your hips so your body forms a straight line.",
+            "Bring the bottom leg up to meet the bench.",
+            "Hold for the prescribed duration."
+        ],
+        "mistakes": [
+            "Hips sagging toward the floor.",
+            "Pushing through the knee instead of the foot."
+        ],
+        "muscles": ["Adductors", "Core", "Obliques"],
+        "sets_reps": "3 sets of 30 seconds per side",
+        "difficulty": "Advanced",
+        "when": "After training",
+        "category": "injury"
+    },
+    {
+        "name": "Lower Body Foam Rolling",
+        "video": "/static/videos/foam rolling.mp4",
+        "description": "Myofascial release to reduce muscle soreness and improve blood flow.",
+        "steps": [
+            "Place the roller under the target muscle (Quads/Hamstrings).",
+            "Slowly roll back and forth over the muscle.",
+            "Pause on tight spots for 20-30 seconds.",
+            "Maintain steady breathing throughout."
+        ],
+        "mistakes": [
+            "Rolling too fast.",
+            "Holding your breath."
+        ],
+        "muscles": ["Quads", "Hamstrings", "IT Band", "Calves"],
+        "sets_reps": "60 seconds per muscle group",
+        "difficulty": "Beginner",
+        "when": "Recovery / Rehab",
+        "category": "sleep"
+    },
+    {
+        "name": "Glute Bridge",
+        "video": "/static/videos/glute bridge.mp4",
+        "description": "Activates the posterior chain to protect the lower back and knees.",
+        "steps": [
+            "Lie on your back with knees bent and feet flat.",
+            "Squeeze your glutes and lift your hips toward the ceiling.",
+            "Form a straight line from knees to shoulders.",
+            "Lower slowly and repeat."
+        ],
+        "mistakes": [
+            "Overarching the lower back.",
+            "Pushing through the toes instead of heels."
+        ],
+        "muscles": ["Gluteus Maximus", "Hamstrings", "Core"],
+        "sets_reps": "3 sets of 12 reps",
+        "difficulty": "Beginner",
+        "when": "Before training",
+        "category": "mobility"
+    },
+    {
+        "name": "Dynamic Hip Flexor Stretch",
+        "video": "/static/videos/hip flexor.mp4",
+        "description": "Opens up the hips to improve sprint mechanics and reduce back pain.",
+        "steps": [
+            "Kneel on one knee in a lunge position.",
+            "Tuck your pelvis under (posterior tilt).",
+            "Lean forward slightly until you feel a stretch in the thigh.",
+            "Reach the same-side arm overhead for an intensified stretch."
+        ],
+        "mistakes": [
+            "Arching the lower back excessively.",
+            "Leaning too far forward without pelvic control."
+        ],
+        "muscles": ["Iliopsoas", "Rectus Femoris"],
+        "sets_reps": "3 sets of 30 seconds per side",
+        "difficulty": "Beginner",
+        "when": "Before training",
+        "category": "mobility"
+    },
+    {
+        "name": "90/90 Hip Rotation",
+        "video": "/static/videos/hip rotation.mp4",
+        "description": "Enhances internal and external hip rotation for better multi-directional speed.",
+        "steps": [
+            "Sit on the floor with both knees bent at 90 degrees.",
+            "Ensure one leg is in front and one is to the side.",
+            "Rotate your torso over the front leg.",
+            "Switch sides without using your hands if possible."
+        ],
+        "mistakes": [
+            "Rounding the spine.",
+            "Forcing the movement past comfort range."
+        ],
+        "muscles": ["Hip Rotators", "Adductors", "Glutes"],
+        "sets_reps": "3 sets of 10 rotations",
+        "difficulty": "Medium",
+        "when": "Before training",
+        "category": "mobility"
+    },
+    {
+        "name": "Dynamic Leg Swings (Front/Side)",
+        "video": "/static/videos/leg swings.mp4",
+        "description": "Increases blood flow and dynamic range of motion in the posterior chain.",
+        "steps": [
+            "Hold onto a stable surface for balance.",
+            "Swing one leg forward and backward with control.",
+            "Switch to side-to-side swings across the body.",
+            "Gradually increase the range of motion."
+        ],
+        "mistakes": [
+            "Moving the torso instead of the hip.",
+            "Letting the leg swing uncontrollably."
+        ],
+        "muscles": ["Hamstrings", "Hip Flexors", "Adductors"],
+        "sets_reps": "2 sets of 15 reps per direction",
+        "difficulty": "Beginner",
+        "when": "Before training",
+        "category": "mobility"
+    },
+    {
+        "name": "Nordic Hamstring Curl",
+        "video": "/static/videos/nordic curl.mp4",
+        "description": "The #1 exercise for reducing hamstring strain risk in sprinters.",
+        "steps": [
+            "Kneel on a soft surface with ankles secured by a partner or rack.",
+            "Lower your torso toward the ground as slowly as possible.",
+            "Keep your hips extended and body straight.",
+            "Catch yourself with your hands and push back up."
+        ],
+        "mistakes": [
+            "Bending at the hips (breaking the line).",
+            "Dropping too fast without resistance."
+        ],
+        "muscles": ["Hamstrings (Eccentric strength)"],
+        "sets_reps": "3 sets of 5-8 reps",
+        "difficulty": "Advanced",
+        "when": "After training",
+        "category": "injury"
+    },
+    {
+        "name": "Romanian Deadlift (RPE 6-7)",
+        "video": "/static/videos/romanian deadlift.mp4",
+        "description": "Builds posterior chain strength to protect the hamstrings and lower back.",
+        "steps": [
+            "Stand with feet hip-width, holding weights in front.",
+            "Hinge at the hips, pushing them back while keeping legs straight.",
+            "Lower the weights until you feel a stretch in the hamstrings.",
+            "Squeeze glutes to return to standing."
+        ],
+        "mistakes": [
+            "Rounding the back.",
+            "Keeping the weights too far from the body."
+        ],
+        "muscles": ["Hamstrings", "Glutes", "Erector Spinae"],
+        "sets_reps": "3 sets of 10 reps",
+        "difficulty": "Medium",
+        "when": "After training",
+        "category": "injury"
+    },
+    {
+        "name": "Scapular Push-Up",
+        "video": "/static/videos/scapular push up.mp4",
+        "description": "Improves shoulder blade stability to prevent upper body impingements.",
+        "steps": [
+            "Start in a high plank position.",
+            "Without bending your elbows, sink your chest down.",
+            "Push back up by protracting your shoulder blades.",
+            "Maintain a tight core throughout."
+        ],
+        "mistakes": [
+            "Bending the arms.",
+            "Sagging the lower back."
+        ],
+        "muscles": ["Serratus Anterior", "Rhomboids"],
+        "sets_reps": "3 sets of 15 reps",
+        "difficulty": "Beginner",
+        "when": "After training",
+        "category": "injury"
+    },
+    {
+        "name": "Single-Leg Squat (Control-focused)",
+        "video": "/static/videos/single leg squat.mp4",
+        "description": "Essential for knee stability and lateral movement control (ACL protection).",
+        "steps": [
+            "Stand on one leg with the other extended forward.",
+            "Lower your hips back and down with control.",
+            "Ensure the knee stays aligned over the toes.",
+            "Push through the heel to return to start."
+        ],
+        "mistakes": [
+            "Knee caving inward (Valgus).",
+            "Letting the heel lift off the ground."
+        ],
+        "muscles": ["Quads", "Glutes", "Core"],
+        "sets_reps": "3 sets of 8 reps per side",
+        "difficulty": "Medium",
+        "when": "After training",
+        "category": "injury"
+    }
+]

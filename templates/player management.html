@@ -119,7 +119,7 @@
                     <form action="/player_management" method="GET">
                         <select name="player_id" onchange="this.form.submit()" class="bg-slate-50 dark:bg-card-dark border border-slate-200 dark:border-border-dark text-slate-700 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-48 p-2.5 outline-none">
                             {% for p in team_players %}
-                                <option value="{{ p.player_id }}" {% if selected_player and p.player_id == selected_player.player_id %}selected{% endif %}>{{ p.username.split('@')[0] | capitalize }}</option>
+                                <option value="{{ p.player_id }}" class="bg-white dark:bg-[#1a2e23] text-slate-900 dark:text-white" {% if selected_player and p.player_id == selected_player.player_id %}selected{% endif %}>{{ p.username.split('@')[0] | capitalize }}</option>
                             {% endfor %}
                         </select>
                     </form>
@@ -150,10 +150,67 @@
                                 </span>
                                 {% endif %}
                             </div>
-                            <p class="text-slate-500 dark:text-[#92c9a9] font-medium">{% if selected_player %}{{ selected_player.position or 'Position Unknown' }}{% endif %} • PlayFit FC</p>
+                            <p class="text-slate-500 dark:text-[#92c9a9] font-medium">{% if selected_player %}{{ selected_player.position or 'Position Unknown' }}{% endif %} • {{ current_user.team_name or 'Independent Athlete' }}</p>
                         </div>
                     </div>
-                    <div class="flex justify-end w-full lg:w-auto">
+                    <div class="flex justify-end w-full lg:w-auto mt-4 lg:mt-0">
+                        {% if selected_player %}
+                        <form id="assign-squad-form" action="/assign_squad" method="POST" class="flex items-center gap-2 bg-slate-50 dark:bg-[#102218] px-3 py-2 rounded-xl border border-slate-200 dark:border-border-dark">
+                            <input type="hidden" name="player_id" value="{{ selected_player.player_id }}">
+                            <span class="text-sm font-bold text-slate-600 dark:text-slate-300">Squad:</span>
+                            <select id="squad-assign" name="squad_name" class="w-full bg-[#102218] border border-[#234833] rounded-lg px-3 py-2 text-white focus:ring-primary text-sm outline-none">
+                                <option value="none" class="bg-white dark:bg-[#102218] text-slate-900 dark:text-white" {% if not selected_player.squad or selected_player.squad == 'none' %}selected{% endif %}>Unassigned</option>
+                                {% for squad in available_squads %}
+                                <option value="{{ squad }}" class="bg-white dark:bg-[#102218] text-slate-900 dark:text-white" {% if selected_player.squad == squad %}selected{% endif %}>
+                                    {% if squad == 'mens' %}Men's Team
+                                    {% elif squad == 'womens' %}Women's Team
+                                    {% else %}{{ squad.capitalize() }}{% endif %}
+                                </option>
+                                {% endfor %}
+                                {# Ensure standard options are present if not already in available_squads #}
+                                {% if 'mens' not in available_squads %}<option value="mens" class="bg-white dark:bg-[#102218] text-slate-900 dark:text-white" {% if selected_player.squad == 'mens' %}selected{% endif %}>Men's Team</option>{% endif %}
+                                {% if 'womens' not in available_squads %}<option value="womens" class="bg-white dark:bg-[#102218] text-slate-900 dark:text-white" {% if selected_player.squad == 'womens' %}selected{% endif %}>Women's Team</option>{% endif %}
+                                <option value="new" class="bg-white dark:bg-[#102218] text-primary font-bold">+ New Squad...</option>
+                            </select>
+                            <input type="text" id="new-squad-input" name="new_squad_name" placeholder="Enter squad name..." 
+                                   class="hidden bg-[#102218] border border-primary rounded-lg px-2 py-1 text-white text-xs outline-none w-32 focus:ring-1 focus:ring-primary">
+                            <button type="submit" class="bg-primary text-background-dark px-3 py-1 rounded-lg text-xs font-bold hover:opacity-90 transition-opacity ml-2">
+                                Save
+                            </button>
+                        </form>
+                        <script>
+                            const squadSelect = document.getElementById('squad-assign');
+                            const newSquadInput = document.getElementById('new-squad-input');
+                            
+                            squadSelect.addEventListener('change', function() {
+                                if (this.value === 'new') {
+                                    newSquadInput.classList.remove('hidden');
+                                    newSquadInput.focus();
+                                    this.name = ""; // Prevent select value from overriding input
+                                } else {
+                                    newSquadInput.classList.add('hidden');
+                                    this.name = "squad_name";
+                                }
+                            });
+
+                            document.getElementById('assign-squad-form').addEventListener('submit', function(e) {
+                                if (squadSelect.value === 'new') {
+                                    const val = newSquadInput.value.trim();
+                                    if (!val) {
+                                        alert('Please enter a squad name');
+                                        e.preventDefault();
+                                        return;
+                                    }
+                                    // Use the input value as the squad name
+                                    const hiddenInput = document.createElement('input');
+                                    hiddenInput.type = 'hidden';
+                                    hiddenInput.name = 'squad_name';
+                                    hiddenInput.value = val;
+                                    this.appendChild(hiddenInput);
+                                }
+                            });
+                        </script>
+                        {% endif %}
                     </div>
                 </div>
                 <!-- Risk Factor Grid -->

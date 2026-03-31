@@ -59,8 +59,12 @@
                 </div>
                 <div class="flex flex-col">
                     <h1 class="text-sm font-bold tracking-tight">PLAYFIT FC</h1>
-                    <p class="text-[10px] text-slate-500 dark:text-primary/60 uppercase tracking-widest">Elite
-                        Performance</p>
+                    <p class="text-[10px] text-slate-500 dark:text-primary/60 uppercase tracking-widest leading-tight">
+                        {{ current_user.team_name or 'Independent Athlete' }}
+                        {% if current_user.squad and current_user.squad != 'none' %}
+                        <br><span class="text-white/40">|</span> {{ current_user.squad.replace('_', ' ').capitalize() }}
+                        {% endif %}
+                    </p>
                 </div>
             </div>
             <nav class="flex-1 px-4 space-y-2 mt-4">
@@ -249,7 +253,7 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-primary/5">
                                 {% for log in wellness_logs %}
-                                <tr class="hover:bg-slate-50 dark:hover:bg-primary/5 transition-colors">
+                                <tr class="history-row hover:bg-slate-50 dark:hover:bg-primary/5 transition-colors {% if loop.index > 5 %}hidden{% endif %}">
                                     <td class="px-6 py-4">
                                         <div class="font-bold">{{ log.entry_date }}</div>
                                     </td>
@@ -301,10 +305,12 @@
                             </tbody>
                         </table>
                     </div>
+                    {% if wellness_logs|length > 5 %}
                     <div class="px-6 py-4 bg-slate-50 dark:bg-primary/5 flex items-center justify-center">
-                        <button class="text-xs font-bold text-primary hover:underline">Load older history
+                        <button id="load-more-btn" type="button" onclick="document.querySelectorAll('.history-row.hidden').forEach(el => el.classList.remove('hidden')); this.parentElement.style.display='none';" class="text-xs font-bold text-primary hover:underline">Load older history
                             records</button>
                     </div>
+                    {% endif %}
                 </div>
                 <!-- Footer Summary Info -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 border-t border-slate-200 dark:border-primary/5">

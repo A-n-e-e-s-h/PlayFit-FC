@@ -94,16 +94,10 @@
                         href="/signout">Sign Out</a>
                 </nav>
                 <div class="flex gap-2">
-                    <button
-                        class="flex items-center justify-center rounded-lg h-10 w-10 bg-[#234833] text-white hover:bg-[#2d5c41] transition-colors">
-                        <span class="material-symbols-outlined text-[20px]">notifications</span>
-                    </button>
-                </div>
-                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/30"
-                    data-alt="Coach profile picture"
-                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCpsEfjWCciCTRbkbdoS9zaeTNFWU-jJf_mlH8owCt1ElqM-0ISExUXPWfjCVkXu3yeJEuWV-i1Feg12nH5Q2UjpHCo3Atbsxh692CfX43YeGXCHWKGKXyWcNKQmiB7rp5aYhOvb2LeZQs4Ubf0yr5wC_q1XtnaxwEL_wof8sdIT5OqrJlsyZJPTCVfOU_aMXtSz1EDgYIKnZKetywo1FNNC5o0n8xLgn4eeAxuYx9_ckNWIFUsIzLJFoeqmbY22WMZA6J5mXGs98w");'>
                 </div>
             </div>
+        </div>
+        </div>
         </div>
     </header>
     <main class="max-w-[1440px] mx-auto px-6 py-6">
@@ -128,7 +122,7 @@
             <div class="xl:col-span-8 space-y-6">
                 <!-- Entry Mode Tabs -->
                 <div class="bg-[#1a2e22] rounded-xl p-1 inline-flex w-full sm:w-auto">
-                    <button onclick="populateTable(initialSquad)"
+                    <button onclick="populateFilteredTable()"
                         class="px-6 py-2.5 rounded-lg bg-primary text-background-dark text-sm font-bold flex items-center gap-2">
                         <span class="material-symbols-outlined text-sm">grid_on</span>
                         Bulk Table Entry
@@ -146,30 +140,46 @@
                                 Date</label>
                             <input
                                 class="bg-[#102218] border border-[#234833] rounded-lg text-white px-4 py-3 focus:ring-primary focus:border-primary"
-                                type="date" value="2023-10-27" />
+                                type="date" id="session-date" value="{{ today_date }}" />
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[#92c9a9] text-xs font-bold uppercase tracking-wider">Session
-                                Type</label>
+                                Details</label>
                             <select id="session-type-select"
                                 class="bg-[#102218] border border-[#234833] rounded-lg text-white px-4 py-3 focus:ring-primary focus:border-primary">
                                 <option value="technical">Technical &amp; Tactical</option>
                                 <option value="match">Match Details</option>
                             </select>
                         </div>
-
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[#92c9a9] text-xs font-bold uppercase tracking-wider">Squad
+                                Selection</label>
+                            <select id="squad-select" class="w-full bg-[#102218] border border-[#234833] rounded-xl px-4 py-2.5 text-white focus:ring-primary text-sm">
+                                <option value="all">All Squads</option>
+                                {% for squad in available_squads %}
+                                <option value="{{ squad }}">
+                                    {% if squad == 'mens' %}Men's Team
+                                    {% elif squad == 'womens' %}Women's Team
+                                    {% else %}{{ squad.capitalize() }}{% endif %}
+                                </option>
+                                {% endfor %}
+                                {# Ensure standard options are present if not already in available_squads #}
+                                {% if 'mens' not in available_squads %}<option value="mens">Men's Team</option>{% endif %}
+                                {% if 'womens' not in available_squads %}<option value="womens">Women's Team</option>{% endif %}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <!-- Bulk Entry Table Card -->
                 <div class="bg-[#1a2e22] border border-[#234833] rounded-xl overflow-hidden">
                     <div class="px-6 py-4 border-b border-[#234833] flex justify-between items-center">
                         <h3 class="text-white font-bold">Workload Metrics</h3>
-                            <div class="flex gap-2">
-                                <button onclick="resetTable()"
-                                    class="text-xs border border-[#326748] text-[#92c9a9] px-3 py-1.5 rounded hover:border-primary transition-colors">
-                                    Reset Table
-                                </button>
-                            </div>
+                        <div class="flex gap-2">
+                            <button onclick="resetTable()"
+                                class="text-xs border border-[#326748] text-[#92c9a9] px-3 py-1.5 rounded hover:border-primary transition-colors">
+                                Reset Table
+                            </button>
+                        </div>
                     </div>
                     <div class="overflow-x-auto custom-scrollbar">
                         <table class="w-full text-left border-collapse">
@@ -185,53 +195,13 @@
                                 </tr>
                             </thead>
                             <tbody id="workload-table-body" class="divide-y divide-[#234833]">
-                                {% for player in squad %}
-                                <tr class="hover:bg-[#112218] transition-colors group" data-player-id="{{ player.player_id }}">
-                                    <td class="px-6 py-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                                                {{ player.name[:2] }}
-                                            </div>
-                                            <span class="text-white font-medium capitalize">{{ player.name }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <select onchange="updateRowStatus(this)" 
-                                            class="status-select bg-{{ player.status_color }}/10 text-{{ player.status_color }} text-[10px] font-bold uppercase rounded px-2 py-1 border-none focus:ring-0 cursor-pointer">
-                                            <option value="Full Participation" {% if player.suggested_status == 'Full' %}selected{% endif %}>Full Participation</option>
-                                            <option value="Modified Training" {% if player.suggested_status == 'Modified' %}selected{% endif %}>Modified Training</option>
-                                            <option value="No Participation" {% if player.suggested_status == 'No Participation' %}selected{% endif %}>No Participation</option>
-                                        </select>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary" 
-                                               type="number" value="90" oninput="updateValidation()" />
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <input class="w-20 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white text-center focus:ring-primary matches-input hidden" 
-                                               type="number" value="1" oninput="updateValidation()" />
-                                        <select class="w-24 bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm intensity-select" onchange="updateValidation()">
-                                            <option value="3">Low</option>
-                                            <option value="6" selected>Medium</option>
-                                            <option value="9">High</option>
-                                        </select>
-                                    </td>
-                                    <td class="px-6 py-4 col-3">
-                                        <input class="w-full bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm" 
-                                               type="number" value="5" oninput="updateValidation()" />
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <button onclick="this.closest('tr').remove()" class="text-[#92c9a9] hover:text-red-400">
-                                            <span class="material-symbols-outlined text-lg">delete</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
+                                <!-- Table rows will be populated here via JavaScript or Add Button -->
                             </tbody>
                         </table>
                     </div>
                     <div class="p-4 bg-[#102218] flex justify-center">
-                        <button onclick="addIndividualPlayer()" class="text-primary text-sm font-bold flex items-center gap-2 hover:underline">
+                        <button onclick="addIndividualPlayer()"
+                            class="text-primary text-sm font-bold flex items-center gap-2 hover:underline">
                             <span class="material-symbols-outlined text-base">person_add</span>
                             Add Individual Player to Session
                         </button>
@@ -265,39 +235,49 @@
                         </h3>
                     </div>
                     <div class="p-6 space-y-4">
-                        <div id="missing-metrics-card" class="flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                        <div id="missing-metrics-card"
+                            class="flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                             <span class="material-symbols-outlined text-red-500 text-xl">error</span>
                             <div>
                                 <p class="text-white text-sm font-bold">Missing Metrics</p>
-                                <p id="missing-metrics-text" class="text-red-400 text-xs text-xs">All players have valid metrics.</p>
+                                <p id="missing-metrics-text" class="text-red-400 text-xs text-xs">All players have valid
+                                    metrics.</p>
                             </div>
                         </div>
-                        <div id="workload-alert-card" class="flex gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg hidden">
+                        <div id="workload-alert-card"
+                            class="flex gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg hidden">
                             <span class="material-symbols-outlined text-yellow-500 text-xl">warning</span>
                             <div>
                                 <p class="text-white text-sm font-bold">Workload Alert</p>
-                                <p id="workload-alert-text" class="text-yellow-500 text-xs">High workload detected for some players.</p>
+                                <p id="workload-alert-text" class="text-yellow-500 text-xs">High workload detected for
+                                    some players.</p>
                             </div>
                         </div>
-                        <div id="injury-alert-card" class="flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg hidden">
+                        <div id="injury-alert-card"
+                            class="flex gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg hidden">
                             <span class="material-symbols-outlined text-red-500 text-xl">personal_injury</span>
                             <div>
                                 <p class="text-white text-sm font-bold">Active Injuries</p>
-                                <p id="injury-alert-text" class="text-red-400 text-xs">Some players are flagged as injured.</p>
+                                <p id="injury-alert-text" class="text-red-400 text-xs">Some players are flagged as
+                                    injured.</p>
                             </div>
                         </div>
-                        <div id="consistency-alert-card" class="flex gap-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg hidden">
+                        <div id="consistency-alert-card"
+                            class="flex gap-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg hidden">
                             <span class="material-symbols-outlined text-orange-500 text-xl">warning_amber</span>
                             <div>
                                 <p class="text-white text-sm font-bold">Session Inconsistency</p>
-                                <p id="consistency-alert-text" class="text-orange-400 text-xs">High intensity flagged in technical session.</p>
+                                <p id="consistency-alert-text" class="text-orange-400 text-xs">High intensity flagged in
+                                    technical session.</p>
                             </div>
                         </div>
-                        <div id="availability-card" class="flex gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                        <div id="availability-card"
+                            class="flex gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                             <span class="material-symbols-outlined text-primary text-xl">check_circle</span>
                             <div>
                                 <p class="text-white text-sm font-bold">Squad Availability</p>
-                                <p id="availability-text" class="text-[#92c9a9] text-xs">0% of Squad logged for this session.</p>
+                                <p id="availability-text" class="text-[#92c9a9] text-xs">0% of Squad logged for this
+                                    session.</p>
                             </div>
                         </div>
                     </div>
@@ -362,10 +342,13 @@
             if (selectedType === 'match') {
                 header1.textContent = 'Minutes Played';
                 header2.textContent = 'Matches per Week';
-                header3.style.display = 'none';
-                
+                header3.style.display = 'table-cell';
+                header3.textContent = 'Active Injury';
+
                 // Toggle row elements
-                document.querySelectorAll('.col-3').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.col-3').forEach(el => el.style.display = 'table-cell');
+                document.querySelectorAll('.frequency-input').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.active-injury-select').forEach(el => el.style.display = 'inline-block');
                 document.querySelectorAll('.intensity-select').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.training-minutes-input').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.match-minutes-input').forEach(el => el.style.display = 'inline-block');
@@ -375,9 +358,11 @@
                 header2.textContent = 'Training Intensity';
                 header3.style.display = 'table-cell';
                 header3.textContent = 'Sessions per Week';
-                
+
                 // Toggle row elements
                 document.querySelectorAll('.col-3').forEach(el => el.style.display = 'table-cell');
+                document.querySelectorAll('.frequency-input').forEach(el => el.style.display = 'table-cell');
+                document.querySelectorAll('.active-injury-select').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.intensity-select').forEach(el => el.style.display = 'inline-block');
                 document.querySelectorAll('.training-minutes-input').forEach(el => el.style.display = 'inline-block');
                 document.querySelectorAll('.match-minutes-input').forEach(el => el.style.display = 'none');
@@ -389,7 +374,7 @@
 
         // Upload Logic
         uploadZone.addEventListener('click', () => fileInput.click());
-        
+
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 handleFileUpload(e.target.files[0]);
@@ -406,15 +391,15 @@
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!response.ok) {
                     const errData = await response.json();
                     throw new Error(errData.error || 'Upload failed');
                 }
-                
+
                 const data = await response.json();
                 populateTable(data.players);
-                
+
                 uploadZone.innerHTML = `
                     <span class="material-symbols-outlined text-4xl text-primary mb-3">check_circle</span>
                     <p class="text-white text-sm font-bold mb-1">Imported Successfully</p>
@@ -438,7 +423,7 @@
                     const status = player.suggested_status || "Full";
                     const color = player.status_color || "primary";
                     const id = player.player_id || null;
-                    
+
                     addPlayerRow(name, status, color, id, player);
                 });
             }
@@ -448,13 +433,29 @@
 
         // Save Session Logic
         const saveBtn = document.getElementById('save-session-btn');
-        const sessionDateInput = document.querySelector('input[type="date"]');
+        const sessionDateInput = document.getElementById('session-date');
 
         saveBtn.addEventListener('click', saveSession);
 
         // Initialize squad data for reset
         const squadDataStr = '{{ squad | tojson | safe }}';
         const initialSquad = JSON.parse(squadDataStr);
+
+        const squadSelect = document.getElementById('squad-select');
+
+        squadSelect.addEventListener('change', () => {
+            populateFilteredTable();
+        });
+
+        function populateFilteredTable() {
+            const selectedSquad = squadSelect.value;
+            if (selectedSquad === 'all') {
+                populateTable(initialSquad);
+            } else {
+                const filtered = initialSquad.filter(p => p.squad === selectedSquad);
+                populateTable(filtered);
+            }
+        }
 
         function resetTable() {
             tableBody.innerHTML = '';
@@ -475,7 +476,7 @@
             const row = document.createElement('tr');
             row.className = 'hover:bg-[#112218] transition-colors group';
             if (id) row.setAttribute('data-player-id', id);
-            
+
             // Separate metrics for independent storage
             const trMinutes = metrics ? (metrics.minutes || metrics.duration || '') : '';
             const matchMinutes = metrics ? (metrics.minutes_played || '') : '';
@@ -518,6 +519,10 @@
                 <td class="px-6 py-4 col-3">
                     <input class="w-full bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm frequency-input" 
                            type="number" value="${frequency}" placeholder="0" oninput="updateValidation()" />
+                    <select class="w-full bg-[#102218] border border-[#234833] rounded px-2 py-1.5 text-white focus:ring-primary text-sm active-injury-select hidden" onchange="updateValidation()">
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                    </select>
                 </td>
                 <td class="px-6 py-4 text-right">
                     <button onclick="this.closest('tr').remove(); updateValidation();" class="text-[#92c9a9] hover:text-red-400">
@@ -533,7 +538,7 @@
             const totalPlayers = initialSquad.length || rows.length; // Fallback to rows.length if initialSquad is empty
             const playerCount = rows.length;
             const sessionType = sessionTypeSelect.value;
-            
+
             let missingCount = 0;
             let highWorkloadCount = 0;
             let injuredCount = 0;
@@ -558,14 +563,14 @@
                 const frequency = frequencyInput ? (parseInt(frequencyInput.value) || 0) : 0;
                 const statusSelect = row.querySelector('.status-select');
                 const status = statusSelect ? statusSelect.value : 'Full';
-                
+
                 // Statistics ONLY consider Tactical/Technical data
                 totalDuration += trMinutes * (frequency || 1);
-                
+
                 if (status !== 'No Participation') {
                     activePlayersCount++;
                 }
-                
+
                 // Calculate intensity ONLY from Tactical data
                 totalIntensitySum += intensity;
                 rowCountWithIntensity++;
@@ -613,7 +618,7 @@
             if (rowCountWithIntensity > 0) {
                 avgIntensity = (totalIntensitySum / rowCountWithIntensity).toFixed(1);
             }
-            
+
             avgIntensityVal.innerHTML = `${avgIntensity} <span class="text-xs text-[#92c9a9] font-normal">/10</span>`;
             intensityProgressBar.style.width = `${(avgIntensity / 10) * 100}%`;
             totalDurationVal.innerHTML = `${totalDuration.toLocaleString()} <span class="text-xs font-normal">min</span>`;
@@ -682,7 +687,7 @@
         function updateRowStatus(select) {
             const val = select.value;
             select.classList.remove('bg-primary/10', 'text-primary', 'bg-yellow-500/10', 'text-yellow-500', 'bg-red-500/10', 'text-red-500');
-            
+
             if (val === 'Full Participation') {
                 select.classList.add('bg-primary/10', 'text-primary');
             } else if (val === 'Modified Training') {
@@ -705,14 +710,15 @@
                 const name = row.querySelector('.font-medium').textContent;
                 const playerId = row.getAttribute('data-player-id');
                 const statusSelect = row.querySelector('.status-select');
-                
+
                 // Collect ALL available data from the row
                 const trMinutes = row.querySelector('.training-minutes-input').value;
                 const intensity = row.querySelector('.intensity-select').value;
                 const frequency = row.querySelector('.frequency-input').value;
-                
+
                 const matchMinutes = row.querySelector('.match-minutes-input').value;
                 const matches = row.querySelector('.matches-input').value;
+                const activeInjury = row.querySelector('.active-injury-select').value;
 
                 sessionData.players.push({
                     player_id: playerId,
@@ -725,7 +731,8 @@
                     },
                     match: {
                         minutes: matchMinutes,
-                        matches: matches
+                        matches: matches,
+                        active_injury: activeInjury
                     }
                 });
             });
@@ -733,7 +740,7 @@
             try {
                 saveBtn.textContent = 'Saving...';
                 saveBtn.disabled = true;
-                
+
                 const response = await fetch('/save_session_data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -745,7 +752,7 @@
                 saveBtn.classList.remove('bg-primary');
                 saveBtn.classList.add('bg-blue-500');
                 saveBtn.textContent = 'Saved!';
-                
+
                 setTimeout(() => {
                     saveBtn.classList.remove('bg-blue-500');
                     saveBtn.classList.add('bg-primary');

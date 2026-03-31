@@ -62,7 +62,15 @@
                     </div>
                     <div class="flex flex-col">
                         <h1 class="text-white text-base font-bold leading-tight">PLAYFIT FC</h1>
-                        <p class="text-primary text-xs font-medium uppercase tracking-wider">Player Portal</p>
+                        <p class="text-primary text-[10px] font-bold uppercase tracking-widest leading-none">
+                            {{ current_user.team_name or 'Independent Athlete' }}
+                            {% if current_user.squad and current_user.squad != 'none' %}
+                            <span class="text-white/40 mx-1">|</span> {{ current_user.squad.replace('_', ' ').capitalize() }}
+                            {% endif %}
+                            {% if current_user.sport %}
+                            <span class="text-white/40 mx-1">|</span> <span class="text-white/60 tracking-normal">{{ current_user.sport | capitalize }}</span>
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
                 <nav class="flex flex-col gap-2">
@@ -96,8 +104,10 @@
                 <header class="flex flex-wrap justify-between items-end gap-4">
                     <div class="flex flex-col gap-1 w-full">
                         <div class="flex justify-between items-center w-full">
-                            <h2 class="text-slate-900 dark:text-white text-4xl font-black tracking-tight">Welcome back, {{
-                                user.username.split('@')[0] | capitalize }}</h2>
+                            <h2 class="text-slate-900 dark:text-white text-4xl font-black tracking-tight">
+                                {% if current_user.login_count <= 1 %}Welcome,{% else %}Welcome back,{% endif %} 
+                                {{ user.username.split('@')[0] | capitalize }}
+                            </h2>
                         </div>
                         <p class="text-slate-500 dark:text-primary/70 text-base font-medium">Your injury risk is
                             currently <span class="text-primary">{{ prediction.risk_level }}</span></p>
@@ -148,9 +158,29 @@
                                 </div>
                                 <div class="mt-4">
                                     <p class="text-slate-900 dark:text-white font-bold">Injury Risk Level</p>
-                                    <p class="text-slate-500 dark:text-primary/60 text-xs mt-1">{{
-                                        prediction.recommendation }}</p>
+                                    <p class="text-slate-500 dark:text-primary/70 text-[10px] uppercase font-black mt-1">
+                                        Calculated from 25+ physiological metrics
+                                    </p>
                                 </div>
+                                <!-- SHAP Factors Integration -->
+                                {% if prediction.top_factors %}
+                                <div class="mt-6 w-full border-t border-slate-100 dark:border-white/5 pt-4">
+                                    <p class="text-xs font-bold text-slate-500 dark:text-[#92c9a9] uppercase tracking-widest mb-3">Main Risk Drivers</p>
+                                    <div class="space-y-2">
+                                        {% for factor in prediction.top_factors %}
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs font-bold text-slate-700 dark:text-white">{{ factor.feature }}</span>
+                                            <span class="text-[10px] font-black {% if factor.impact > 0 %}text-red-500{% else %}text-primary{% endif %} uppercase">
+                                                {{ factor.impact_str }} Impact
+                                            </span>
+                                        </div>
+                                        <div class="w-full bg-slate-100 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
+                                            <div class="h-full {% if factor.impact > 0 %}bg-red-500{% else %}bg-primary{% endif %}" style="width: {{ factor.width_pct }}%;"></div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                             <!-- Quick Stats Cards -->
                             <div class="grid grid-rows-2 gap-4">
@@ -163,7 +193,7 @@
                                         <p
                                             class="text-slate-500 dark:text-white/60 text-xs font-bold uppercase tracking-wider">
                                             Days Injury Free</p>
-                                        <p class="text-2xl font-black text-slate-900 dark:text-white">{{ prediction.days_injury_free }} Days</p>
+                                        <p class="text-2xl font-black text-slate-900 dark:text-white">{{ prediction.days_injury_free }}</p>
                                     </div>
                                 </div>
                                 <div
@@ -296,30 +326,16 @@
                                 Prevention Recommendations
                             </h3>
                             <div class="p-6 space-y-4">
-                                <div class="flex gap-4 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
-                                    <span class="material-symbols-outlined text-orange-500 shrink-0">warning</span>
+                                {% for rec in prediction.recommendation_list %}
+                                <div class="flex gap-4 p-3 rounded-xl {{ rec.bg_class }}">
+                                    <span class="material-symbols-outlined {{ rec.text_class }} shrink-0">{{ rec.icon }}</span>
                                     <div class="space-y-1">
-                                        <p class="text-xs font-bold text-orange-500 uppercase">High Priority</p>
+                                        <p class="text-xs font-bold {{ rec.text_class }} uppercase">{{ rec.title }}</p>
                                         <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-tight">
-                                            Reduce training intensity by 20% today</p>
+                                            {{ rec.description }}</p>
                                     </div>
                                 </div>
-                                <div class="flex gap-4 p-3 rounded-xl bg-primary/10 border border-primary/20">
-                                    <span class="material-symbols-outlined text-primary shrink-0">fitness_center</span>
-                                    <div class="space-y-1">
-                                        <p class="text-xs font-bold text-primary uppercase">Mobility</p>
-                                        <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-tight">
-                                            Focus on hip mobility work for 15 mins</p>
-                                    </div>
-                                </div>
-                                <div class="flex gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                                    <span class="material-symbols-outlined text-blue-400 shrink-0">water_drop</span>
-                                    <div class="space-y-1">
-                                        <p class="text-xs font-bold text-blue-400 uppercase">Nutrition</p>
-                                        <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-tight">
-                                            Hydration target: 3.5L with electrolytes</p>
-                                    </div>
-                                </div>
+                                {% endfor %}
                                 <a class="block text-center text-primary text-xs font-bold uppercase tracking-widest pt-2 hover:underline"
                                     href="/guide">View All Guides</a>
                             </div>

@@ -9,6 +9,9 @@ env/
 *.sqlite3
 playfit.db
 
+# Static Assets
+static/videos/
+
 # Python
 __pycache__/
 *.py[cod]

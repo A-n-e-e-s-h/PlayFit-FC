@@ -55,37 +55,235 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #13ec6d;
         }
+
+        /* Hide Volume Controls on Videos */
+        video::-webkit-media-controls-volume-slider {
+            display: none;
+        }
+        video::-webkit-media-controls-mute-button {
+            display: none;
+        }
     </style>
     <script>
-        function filterExercises(category) {
-            const mobilitySection = document.getElementById('mobility-section');
-            const sleepSection = document.getElementById('sleep-section');
+        let allExercises = [];
+        let nutritionData = null;
 
-            // Reset all sections to hidden
-            mobilitySection.style.display = 'none';
-            sleepSection.style.display = 'none';
+        async function initExercises() {
+            try {
+                const [exRes, nutRes] = await Promise.all([
+                    fetch('/static/json/exercises.json'),
+                    fetch('/static/json/nutrition.json')
+                ]);
+                allExercises = await exRes.json();
+                nutritionData = await nutRes.json();
+                renderAllSections();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
 
-            // Show sections based on category
-            if (category === 'all') {
-                mobilitySection.style.display = 'block';
-                sleepSection.style.display = 'block';
-            } else if (category === 'mobility') {
-                mobilitySection.style.display = 'block';
-            } else if (category === 'sleep') {
-                sleepSection.style.display = 'block';
+        function renderAllSections() {
+            const categories = ['mobility', 'sleep', 'nutrition', 'injury'];
+            categories.forEach(cat => {
+                const container = document.getElementById(`${cat}-grid`);
+                if (!container) return;
+
+                if (cat === 'nutrition' && nutritionData) {
+                    renderNutritionGuide(container);
+                } else {
+                    const exercises = allExercises.filter(ex => ex.category === cat);
+                    container.innerHTML = exercises.map(ex => createCardHTML(ex)).join('');
+                }
+            });
+        }
+
+        function renderNutritionGuide(container) {
+            const sections = [
+                { key: 'hydration', icon: 'water_drop', color: 'text-blue-400' },
+                { key: 'pre_training', icon: 'bolt', color: 'text-amber-400' },
+                { key: 'post_training', icon: 'rebase_edit', color: 'text-emerald-400' },
+                { key: 'anti_inflammatory', icon: 'eco', color: 'text-primary' }
+            ];
+
+            let html = sections.map(s => {
+                const data = nutritionData[s.key];
+                if (!data) return '';
+
+                // Handle both list-based and detail-based (post_training) sections
+                let listItems = '';
+                const baseList = data.guidelines || data.what_to_eat || data.foods;
+                
+                if (baseList) {
+                    listItems = baseList.map(item => `
+                        <li class="flex items-start gap-2 text-[11px] text-slate-400">
+                            <span class="text-primary mt-1">•</span>
+                            <span>${item}</span>
+                        </li>
+                    `).join('');
+                } else if (s.key === 'post_training') {
+                    const details = [
+                        `Protein: ${data.protein}`,
+                        `Carbs: ${data.carbs}`,
+                        `Timing: ${data.timing}`
+                    ];
+                    listItems = details.map(item => `
+                        <li class="flex items-start gap-2 text-[11px] text-slate-400">
+                            <span class="text-primary mt-1">•</span>
+                            <span>${item}</span>
+                        </li>
+                    `).join('');
+                }
+
+                return `
+                    <div class="group bg-primary/5 border border-primary/10 rounded-2xl p-6 hover:border-primary/40 transition-all flex flex-col h-full shadow-lg">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="material-symbols-outlined ${s.color} text-3xl">${s.icon}</span>
+                            <span class="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded uppercase tracking-tighter border border-primary/5">${data.tag}</span>
+                        </div>
+                        <h4 class="text-slate-100 font-bold text-base mb-2 group-hover:text-primary transition-colors">${data.title}</h4>
+                        <p class="text-slate-500 text-[11px] leading-relaxed mb-4">${data.description}</p>
+                        
+                        <ul class="space-y-2 mb-6 flex-1">
+                            ${listItems}
+                        </ul>
+
+                        ${data.examples ? `
+                            <div class="pt-4 border-t border-white/5">
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Pro Examples</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${data.examples.map(ex => `<span class="px-2 py-1 bg-white/5 rounded text-[10px] text-slate-300 font-medium">${ex}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // Add Performance Tips as a special full-width or side card
+            if (nutritionData.performance_tips) {
+                html += `
+                    <div class="md:col-span-2 lg:col-span-3 bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 rounded-2xl p-8 mt-4">
+                        <div class="flex items-center gap-3 mb-6">
+                            <span class="material-symbols-outlined text-primary text-3xl">tips_and_updates</span>
+                            <h4 class="text-xl font-black text-slate-100 uppercase tracking-tighter italic">Pro Performance Tips</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            ${nutritionData.performance_tips.map(t => `
+                                <div class="space-y-2">
+                                    <h5 class="text-primary font-bold text-sm">${t.tip}</h5>
+                                    <p class="text-slate-400 text-[11px] leading-relaxed">${t.detail}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
             }
 
-            // Update button styles
+            container.innerHTML = html;
+        }
+
+        function createCardHTML(ex) {
+            return `
+                <div onclick="openModal('${ex.name.replace(/'/g, "\\'")}')" class="group bg-primary/5 border border-primary/10 rounded-2xl overflow-hidden hover:border-primary/40 hover:bg-primary/10 transition-all cursor-pointer flex flex-col h-full shadow-lg hover:shadow-primary/5">
+                    <div class="aspect-video relative overflow-hidden bg-black/40">
+                        <video class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" muted loop preload="metadata">
+                            <source src="${ex.video}" type="video/mp4">
+                        </video>
+                        <div class="absolute inset-0 bg-gradient-to-t from-background-dark/80 to-transparent"></div>
+                        <div class="absolute bottom-4 left-4 right-4">
+                            <span class="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black rounded uppercase tracking-widest border border-primary/10">${ex.difficulty}</span>
+                            <h5 class="text-slate-100 font-bold text-sm mt-1 group-hover:text-primary transition-colors line-clamp-1">${ex.name}</h5>
+                        </div>
+                    </div>
+                    <div class="p-5 flex-1 flex flex-col">
+                        <p class="text-slate-400 text-[11px] leading-relaxed line-clamp-2 mb-4">${ex.description}</p>
+                        <div class="mt-auto flex items-center justify-between pt-4 border-t border-white/5">
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[14px] text-primary">schedule</span>
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-tighter">${ex.when}</span>
+                            </div>
+                            <span class="material-symbols-outlined text-primary text-lg group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function filterExercises(category) {
+            const sections = {
+                'mobility': document.getElementById('mobility-section'),
+                'sleep': document.getElementById('sleep-section'),
+                'nutrition': document.getElementById('nutrition-section'),
+                'injury': document.getElementById('injury-section')
+            };
+
+            Object.values(sections).forEach(sec => {
+                if (sec) sec.style.display = 'none';
+            });
+
+            if (category === 'all') {
+                Object.values(sections).forEach(sec => {
+                    if (sec) sec.style.display = 'block';
+                });
+            } else if (sections[category]) {
+                sections[category].style.display = 'block';
+            }
+
             const buttons = document.querySelectorAll('button[onclick^="filterExercises"]');
             buttons.forEach(btn => {
                 btn.classList.remove('bg-primary', 'text-background-dark', 'font-bold');
                 btn.classList.add('bg-primary/10', 'text-slate-300', 'font-medium');
             });
 
-            // Highlight active button
-            event.target.classList.remove('bg-primary/10', 'text-slate-300', 'font-medium');
-            event.target.classList.add('bg-primary', 'text-background-dark', 'font-bold');
+            const activeBtn = Array.from(buttons).find(btn => btn.getAttribute('onclick').includes(`'${category}'`));
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-primary/10', 'text-slate-300', 'font-medium');
+                activeBtn.classList.add('bg-primary', 'text-background-dark', 'font-bold');
+            }
         }
+
+        function openModal(name) {
+            const ex = allExercises.find(e => e.name === name);
+            if (!ex) return;
+
+            document.getElementById('modal-title').textContent = ex.name;
+            document.getElementById('modal-description').textContent = ex.description;
+            document.getElementById('modal-muscles').textContent = ex.muscles.join(', ');
+            document.getElementById('modal-sets').textContent = ex.sets_reps;
+            document.getElementById('modal-difficulty').textContent = ex.difficulty;
+            document.getElementById('modal-when').textContent = ex.when;
+
+            document.getElementById('modal-steps').innerHTML = ex.steps.map(s => `
+                <li class="flex items-start gap-3">
+                    <span class="size-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 border border-primary/20">${ex.steps.indexOf(s) + 1}</span>
+                    <span>${s}</span>
+                </li>
+            `).join('');
+
+            document.getElementById('modal-mistakes').innerHTML = ex.mistakes.map(m => `
+                <li class="flex items-start gap-2">
+                    <span class="text-red-500">•</span>
+                    <span>${m}</span>
+                </li>
+            `).join('');
+
+            const video = document.getElementById('modal-video');
+            video.querySelector('source').setAttribute('src', ex.video);
+            video.muted = true; // Force mute
+            video.load();
+            video.play();
+
+            document.getElementById('exercise-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('exercise-modal').classList.add('hidden');
+            document.getElementById('modal-video').pause();
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('DOMContentLoaded', initExercises);
     </script>
 </head>
 
@@ -100,7 +298,11 @@
                     </div>
                     <div>
                         <h1 class="text-slate-100 text-lg font-bold leading-none">PLAYFIT FC</h1>
-                        <p class="text-primary/70 text-xs font-medium uppercase tracking-wider mt-1">Injury Prevention
+                        <p class="text-primary/70 text-[10px] font-bold uppercase tracking-widest mt-1 leading-tight">
+                            {{ current_user.team_name or 'Independent Athlete' }}
+                            {% if current_user.squad and current_user.squad != 'none' %}
+                            <br><span class="text-white/40">|</span> {{ current_user.squad.replace('_', ' ').capitalize() }}
+                            {% endif %}
                         </p>
                     </div>
                 </div>
@@ -139,138 +341,40 @@
         </aside>
         <!-- Main Content Area -->
         <main class="flex-1 ml-64 min-h-screen">
-            <!-- Header -->
-            <header
-                class="sticky top-0 z-40 bg-background-dark/80 backdrop-blur-md border-b border-primary/10 px-8 py-4 flex items-center justify-between">
-                <div class="flex items-center gap-4 flex-1 max-w-xl">
-                    <div class="relative w-full">
-                        <span
-                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-                        <input
-                            class="w-full bg-primary/5 border border-primary/10 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none text-slate-100 placeholder:text-slate-500"
-                            placeholder="Search guides, exercises, or recovery tips..." type="text" />
-                    </div>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-3 pl-4 border-l border-primary/10">
-                        <div class="text-right">
-                            <p class="text-sm font-bold text-slate-100">{{ user.username.split('@')[0] | capitalize }}
-                            </p>
-                            <p class="text-xs text-primary">Pro Athlete</p>
-                        </div>
-                        <div class="size-10 rounded-full border-2 border-primary overflow-hidden">
-                            <img alt="Profile image" data-alt="Portrait of a professional athlete smiling"
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUWszghH_4r4JhCJHI2f0LI9APZ7QRlBmpth6vCCMxbfnUUKDGE-0QF0Xxg78ikEkctwTB1cYT45gj-4o7JyWG1-w--wpXKokp5u6P2pgcOV4PUzKvja5Tf-uSRxK-hZtUyvuHRLRl9KKyAIdKhukZFpsCmG_YP9zwLm35eWLwQdE32waF4ADNvKSJH3i9jKJS4hDfSOJH9igsuUCrt3Lep126osP07Gis76sPrqUrqEYEiHQhVpVguDw1ZSYBGN2NNWrmXyTSYqg" />
-                        </div>
-                    </div>
-                </div>
-            </header>
             <div class="p-8">
-                <!-- Hero Section -->
-                <div class="mb-12">
-                    <h2 class="text-3xl font-black text-slate-100 tracking-tight">Prevention &amp; Recovery Library</h2>
-                    <p class="text-slate-400 mt-2 max-w-2xl">Access personalized resources curated by sports scientists
-                        to optimize your performance and minimize injury risks.</p>
-                </div>
-                <!-- Recommended for You -->
-                <section class="mb-12">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">stars</span>
-                            <h3 class="text-xl font-bold text-slate-100">Recommended for You</h3>
-                        </div>
-                        <a class="text-primary text-sm font-semibold hover:underline" href="#">View All
-                            Recommendations</a>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Card 1 -->
-                        <div
-                            class="group bg-primary/5 border border-primary/20 rounded-xl overflow-hidden hover:border-primary/50 transition-all cursor-pointer">
-                            <div class="aspect-video relative overflow-hidden">
-                                <img alt="Ankle stability"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    data-alt="Athlete performing ankle stability exercises with resistance band"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRbJ98LIVrYZolVqXqy7adE5N_NKmaAj7P-3b2To6I-oJK2g_yi8kuk7vGaCNvrT2-maDkHGESzG-_ID2-zLB5PGzyEDGLtbqpp7HBqcQnD7qDB_-lm6Y720m67BPtBD_VJ8oo8uO13lF4EsN6jEjftCcRn-xwDrmXF_d8velJ-XVCtVpV79DVJ96BFHQTXjQMDVirlPn5hUPR1eCOIcCzfVKeWS5wRUj7NQ9Gg4sRnPRh75scgiCv1ZqmIO1vbtjOLpIyuluz-p4" />
-                                <div class="absolute inset-0 bg-gradient-to-t from-background-dark/80 to-transparent">
-                                </div>
-                                <div
-                                    class="absolute top-3 left-3 bg-primary text-background-dark text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
-                                    High Priority</div>
-                                <div
-                                    class="absolute bottom-3 right-3 bg-black/50 backdrop-blur-md text-slate-100 text-xs px-2 py-1 rounded-md flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-xs">schedule</span> 12 min
-                                </div>
+                <!-- Smart Recommendation Banner -->
+                <section class="mb-8">
+                    <div class="bg-gradient-to-r {% if prediction.risk_level == 'High' %}from-red-600/20 to-orange-600/10 border-red-500/30{% elif prediction.risk_level == 'Medium' %}from-amber-600/20 to-yellow-600/10 border-amber-500/30{% else %}from-primary/20 to-primary/10 border-primary/30{% endif %} border rounded-2xl p-6 backdrop-blur-sm">
+                        <div class="flex items-start gap-4">
+                            <div class="size-12 rounded-xl {% if prediction.risk_level == 'High' %}bg-red-500{% elif prediction.risk_level == 'Medium' %}bg-amber-500{% else %}bg-primary{% endif %} flex items-center justify-center text-background-dark shadow-lg">
+                                <span class="material-symbols-outlined font-bold">{% if prediction.risk_level == 'High' %}warning{% elif prediction.risk_level == 'Medium' %}balance{% else %}rocket_launch{% endif %}</span>
                             </div>
-                            <div class="p-5">
-                                <h4 class="text-slate-100 font-bold mb-2 group-hover:text-primary transition-colors">
-                                    Advanced Ankle Stability Drills</h4>
-                                <p class="text-slate-400 text-sm line-clamp-2">Targeted proprioception and strengthening
-                                    exercises based on your recent gait analysis data.</p>
-                                <div class="mt-4 flex items-center gap-2">
-                                    <span
-                                        class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Mobility</span>
-                                    <span
-                                        class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Injury
-                                        Specific</span>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="text-xl font-bold text-slate-100 italic">Personalized AI Intelligence</h3>
+                                    <span class="px-3 py-1 rounded-full bg-black/40 text-[10px] font-black uppercase tracking-widest border border-white/10 text-slate-300">
+                                        Status: {{ prediction.risk_level }} Risk
+                                    </span>
                                 </div>
-                            </div>
-                        </div>
-                        <!-- Card 2 -->
-                        <div
-                            class="group bg-primary/5 border border-primary/20 rounded-xl overflow-hidden hover:border-primary/50 transition-all cursor-pointer">
-                            <div class="aspect-video relative overflow-hidden">
-                                <img alt="Hydration"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    data-alt="Close up of sports water bottle with fresh fruit and electrolytes"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJQn6dKyWzgIYfLVIX4hEzwaJg8Eg5gTISTzqy7FK5VMrXV0pdDiX9PyEG6X7NZkj1yaF-WPPPZF6_OeVMrkPDd2wBGZGDmewx5-W4w5YOVnOu-6bnF-KaRiCHGfXD_XUP5rYo1B0rRlXDEAe-5JIjbrMUPz_3UBdmSvXJ0WMZK2WfO1S0gzqXcmwSKPJJ8Ft3PrmTvoJqSjz-aN684At2nCbBIyAbRvieASMSuXD867dARmph930YrhFyvtaJpENDC70NHSbZ8Ak" />
-                                <div class="absolute inset-0 bg-gradient-to-t from-background-dark/80 to-transparent">
-                                </div>
-                                <div
-                                    class="absolute bottom-3 right-3 bg-black/50 backdrop-blur-md text-slate-100 text-xs px-2 py-1 rounded-md flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-xs">auto_stories</span> 5 min read
-                                </div>
-                            </div>
-                            <div class="p-5">
-                                <h4 class="text-slate-100 font-bold mb-2 group-hover:text-primary transition-colors">
-                                    Electrolyte Balancing for High Heat</h4>
-                                <p class="text-slate-400 text-sm line-clamp-2">Optimizing your mineral intake during
-                                    intense training blocks to prevent cramping and fatigue.</p>
-                                <div class="mt-4 flex items-center gap-2">
-                                    <span
-                                        class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Nutrition</span>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Card 3 -->
-                        <div
-                            class="group bg-primary/5 border border-primary/20 rounded-xl overflow-hidden hover:border-primary/50 transition-all cursor-pointer">
-                            <div class="aspect-video relative overflow-hidden">
-                                <img alt="Foam rolling"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    data-alt="Athlete using a foam roller for muscle recovery on legs"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqRPnfmGBRqDxfQ17tXRll8HzLbwYkH3eCcfJH_gLR6V7q_nXfcmRx41R9qkXnSykHWm1RMYMsMzb9F6fuWbFSgN3iQm0OP64QCAUYaVByviA6ONsY27tIQrIWMMpkU5zxcbdU8BDlJb1pioXG72EGJByLyybHGpcWffB-ZiW2VJBCA1AMEE5WZtttou034cIy2-2Nt9ZXI_trHbUR7netmTEWxamn7mJTXfCFtxWqPSuNltE-fQq896jb8eNAcPBuwo8BxdpFntM" />
-                                <div class="absolute inset-0 bg-gradient-to-t from-background-dark/80 to-transparent">
-                                </div>
-                                <div
-                                    class="absolute bottom-3 right-3 bg-black/50 backdrop-blur-md text-slate-100 text-xs px-2 py-1 rounded-md flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-xs">schedule</span> 15 min
-                                </div>
-                            </div>
-                            <div class="p-5">
-                                <h4 class="text-slate-100 font-bold mb-2 group-hover:text-primary transition-colors">
-                                    Lower Chain Foam Rolling</h4>
-                                <p class="text-slate-400 text-sm line-clamp-2">Essential myofascial release techniques
-                                    for hamstrings, calves, and glutes to maintain tissue quality.</p>
-                                <div class="mt-4 flex items-center gap-2">
-                                    <span
-                                        class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Recovery</span>
-                                    <span
-                                        class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">Mobility</span>
-                                </div>
+                                <p class="text-slate-300 leading-relaxed text-sm">
+                                    {% if prediction.risk_level == 'High' %}
+                                        <strong class="text-red-400">Priority: Injury Prevention + Rest + Rehab.</strong> Your current data indicates significant strain. Focus on light mobility, active rest, and specific rehab protocols listed below. Avoid high-impact training for the next 48 hours.
+                                    {% elif prediction.risk_level == 'Medium' %}
+                                        <strong class="text-amber-400">Focus: Mobility + Enhanced Recovery.</strong> You are in a moderate load phase. Prioritize 15-min foam rolling sessions and electrolyte balancing to prevent status escalation.
+                                    {% else %}
+                                        <strong class="text-primary">Goal: Performance Maintenance.</strong> Your metrics are optimal. Continue with standard pre-match dynamic flows and maintenance stretching to sustain this level.
+                                    {% endif %}
+                                </p>
                             </div>
                         </div>
                     </div>
                 </section>
+
+                <!-- Hero Section -->
+                <div class="mb-12">
+                    <h2 class="text-3xl font-black text-slate-100 tracking-tight">Prevention &amp; Recovery Library</h2>
+                    <p class="text-slate-400 mt-2 max-w-2xl text-sm leading-relaxed">Scientifically validated, actionable recommendations to optimize performance and reduce injury risk. Updated daily based on your biometric profile.</p>
+                </div>
                 <!-- Categories & Filters -->
                 <section class="mb-12">
                     <div class="flex items-center gap-3 overflow-x-auto pb-4 custom-scrollbar">
@@ -291,144 +395,66 @@
                             Guides</button>
                     </div>
                     <div id="mobility-section" class="exercise-section">
-                        <h3 class="text-xl font-bold text-slate-100 mb-6 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">fitness_center</span>
-                            Mobility &amp; Stretching
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <!-- Card A -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-square relative overflow-hidden">
-                                    <img alt="Dynamic Warmup"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Female athlete performing a dynamic stretching routine outdoors"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuC79scF4fqmRA1yXdyo4zQmkTIr5N5v-8NjcyWEv2Q0mDAscQqXsuV7jn8cotx2ugmiE7EEPoVcZTyya0LGTga-tlyEyQNFHqaWEqfb6l976BptsN4ZmWiqOuN4iR5sku1U2hIQmwTo2OI9NU7dhcHsFahzofwoHAJ2DWehCImp4cSv5_3ogxpkcy8V9qE4rtCEwtwP9s1XSzTHkahqkHxg7U4H0PEw64wB-YMi9AMrgy1QyhYpbnj0ego8FNwy93WzzO7Tk1v_zbM" />
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        15-Min Pre-Match Dynamic Flow</h5>
-                                    <p class="text-slate-500 text-xs">Prepare joints for explosive movements.</p>
-                                </div>
-                            </div>
-                            <!-- Card B removed - Hip Opening Series -->
-                            <!-- Card C -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-square relative overflow-hidden">
-                                    <img alt="Yoga for athletes"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Yoga practitioner in a challenging balancing pose"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEV-kfeVntnmKYzJcCFuyv1M93dhRROtV5T4mR0QgkbV-KhOS1j5d5n1JicB9tY73m07-ZnYL9mmz0ImeQAeL75q-qSAFCr7UqPBncS7Ox5bi3VqQ606uGKBHtq-G0HLEz3D2QfUs5bzI8l6RCJ9FQ5OBd-GdU3xRCXv6CwbioqDsrkcqnit3Kai2ts2cgld-umTnNO-W2wZn-in6BkHg1fUI2kGL5mTzKwGQLR-jb6gLMnj6K1CPsgUXX5J9UcrtcppH9cRKMjaY" />
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        Active Recovery Yoga</h5>
-                                    <p class="text-slate-500 text-xs">Low intensity flow for rest days.</p>
-                                </div>
-                            </div>
-                            <!-- Card D -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-square relative overflow-hidden">
-                                    <img alt="Thoracic mobility"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Close up of a person stretching their upper back with a foam roller"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsfCQ_7oC7Fr6BwN3TD-uNtq9YwR2PMwAFIdLUGeUZoB8H6FaltgtRqUnZqdOBHBxtFkuufLtq9MUZ4wG3hF3UUc2H1PDGXl6ANQm2PlWjOeJRzr3I0qATMXRV_UFVczE8htCKVODSZyCOjwg3epTcSEWF2fKRkSjVfj9fCwLkfm_wUdnkJtaRgBn5WWXN2M6C0QnkgxcCsUD22nMhJkoOZ5DkvZooxHhogtZXkqUo1IdLrE6rVSyytm5Z67OIjFP9QokU4UGils4" />
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        Thoracic Spine Release</h5>
-                                    <p class="text-slate-500 text-xs">Improve rotational power and back health.</p>
-                                </div>
-                            </div>
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">fitness_center</span>
+                                Mobility &amp; Stretching
+                            </h3>
+                            <span class="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-lg border border-primary/20">
+                                RECOMMENDED BEFORE TRAINING (5–10 MINS)
+                            </span>
+                        </div>
+                        
+                        <div id="mobility-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Dynamic Content -->
                         </div>
                     </div>
+
                     <div id="sleep-section" class="exercise-section mt-12">
-                        <h3 class="text-xl font-bold text-slate-100 mb-6 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">bedtime</span>
-                            Sleep &amp; Recovery
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <!-- Card E -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-video relative overflow-hidden">
-                                    <img alt="Sleep tracking"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Abstract image representing deep sleep and circadian rhythms"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5k_bSz3RsVn69HyXN757wRJHOlixBGR2fEY6myKuaOrJAiI-dOMMYe1RXwSa0yqpV3ifNjTeYaK5825aUjxp6zuz83vuBCNJeC7UKFC9r85bw1V_OG3b9a_CmYEmh8Ibcv9Kt92bFFOVtAl9d3phtPbfK1AHRRwYLx0jnOZgDC0ivjMl_Nt-EB5JLA0Do5ntDEwaLgZytQxQuolZxTPG5kZjaJ85f4YyC0GQNMezvrUYtatsGifEuCoGQSb8gEouGZ10Gag1yZKc" />
-                                    <div
-                                        class="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors">
-                                    </div>
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        Circadian Optimization</h5>
-                                    <p class="text-slate-500 text-xs">Aligning your sleep cycles for peak energy.</p>
-                                </div>
-                            </div>
-                            <!-- Card F -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-video relative overflow-hidden">
-                                    <img alt="Cold plunge"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Athlete submerged in an ice bath for recovery"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkSefviQ7A-c8iUPQFAN_ciyYWN90EQ6LxY6m6vsUKbqbnlsNdaMaV4GkYbmhIvnKScY8qiutLwGp4g0HfJx_jKEIVnbminNiUgZzzHT4MdlqFQ6GsosMLqfvtvzPwlu7he540DK7YUpyWNc4lyXYhGnY_p3wvF0lkykQ43yniTCANftwd2ZnCdUwAQQq7Yn-gfV93DuB0c5J0cAAUQN8crzUTpByq0vrzeX-9jTRLBG8dJBvkvhobM2ahKjM_Eua55A2TirDwbik" />
-                                    <div
-                                        class="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors">
-                                    </div>
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        Cryotherapy Protocols</h5>
-                                    <p class="text-slate-500 text-xs">When and how to use cold exposure.</p>
-                                </div>
-                            </div>
-                            <!-- Card G -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-video relative overflow-hidden">
-                                    <img alt="Compression gear"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Athlete wearing compression sleeves on legs"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1Qye2_r-Fygaspqk-HlK7jydzAZwzfKpbKamO2YLV_Bvau-A5yHLn9HCEMIpofv0G82BjtES7YuDlaCdQazKEVznn31QLHKPwJbLfJhL-oroaubNN6A2Dvk7UxYm0wtdbGPXYhdcGOj_ZNDzr1Cu3svTS0N35DVnnwXeOLAygiVzQ383tASdZwmxFuMCX-3onk3Q10cHER3Koc-d14w6mz1cxKidumAA_-EeqF__ArfarZSVvuir3VTHe4j84ygwDwT6GIaA_MYs" />
-                                    <div
-                                        class="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors">
-                                    </div>
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        Active Compression Guide</h5>
-                                    <p class="text-slate-500 text-xs">Accelerate blood flow post-match.</p>
-                                </div>
-                            </div>
-                            <!-- Card H -->
-                            <div
-                                class="group bg-primary/5 border border-primary/10 rounded-xl overflow-hidden hover:border-primary/40 transition-all cursor-pointer">
-                                <div class="aspect-video relative overflow-hidden">
-                                    <img alt="Restorative nap"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        data-alt="Sunlight hitting a comfortable resting area for power naps"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFvLaSfVPe7kddnom1KRT5MlUy8CuNHjVXlcxbbm5Dg0lcNsedGVJ5B8V3nZ3xkUgZFOU0Bg2J5gsscQSRTPADXd6-NcSdN9QfxvxxY352Dw_-WHafDPF_gjPeeY9kbFq3EsaRJ1Q1yV4Skli4r0-PmePpuQ_XRRYiZD9B7VChb4ye-bkHR0G09AdEbIPw5gpFaSsBFh-3Dh8ScbZDfCQ5JWN89LzwNkCNSo4RR3oJT0tj0L9aV0Q0Wy3_bKeku6KVynM9OtMzgSU" />
-                                    <div
-                                        class="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors">
-                                    </div>
-                                </div>
-                                <div class="p-4">
-                                    <h5
-                                        class="text-slate-100 font-bold text-sm mb-1 group-hover:text-primary transition-colors">
-                                        Power Napping for Recovery</h5>
-                                    <p class="text-slate-500 text-xs">Optimal duration for cognitive reset.</p>
-                                </div>
-                            </div>
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">bedtime</span>
+                                Sleep &amp; Recovery
+                            </h3>
+                            <span class="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 uppercase tracking-widest">
+                                Critical Performance Pillar
+                            </span>
+                        </div>
+                        
+                        <div id="sleep-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Dynamic Content -->
+                        </div>
+                    </div>
+
+                    <div id="nutrition-section" class="exercise-section mt-12">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">restaurant</span>
+                                Nutrition &amp; Hydration
+                            </h3>
+                            <span class="px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-lg border border-amber-500/20 uppercase">
+                                Performance Fueling
+                            </span>
+                        </div>
+                        
+                        <div id="nutrition-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Dynamic Content -->
+                        </div>
+                    </div>
+
+                    <div id="injury-section" class="exercise-section mt-12">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">healing</span>
+                                Injury-Specific Guides
+                            </h3>
+                            <span class="px-3 py-1 bg-red-500/10 text-red-500 text-[10px] font-bold rounded-lg border border-red-500/20 uppercase tracking-widest">
+                                Targeted Protection
+                            </span>
+                        </div>
+                        
+                        <div id="injury-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Dynamic Content -->
                         </div>
                     </div>
                 </section>
@@ -446,6 +472,79 @@
                 </div>
             </footer>
         </main>
+    </div>
+    <!-- Exercise Modal -->
+    <div id="exercise-modal" class="fixed inset-0 z-[100] hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4 md:p-8">
+        <div class="bg-background-dark border border-primary/20 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-white/5 flex items-center justify-between bg-primary/5">
+                <h3 id="modal-title" class="text-2xl font-black text-slate-100 tracking-tight italic uppercase">Exercise Name</h3>
+                <button onclick="closeModal()" class="size-10 rounded-full bg-white/5 hover:bg-red-500/20 hover:text-red-400 flex items-center justify-center transition-all">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-1 lg:grid-cols-2">
+                    <!-- Video Section -->
+                    <div class="bg-black/40 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/5 aspect-video lg:aspect-auto">
+                        <video id="modal-video" class="w-full h-full object-cover" controls loop autoplay muted>
+                            <source src="" type="video/mp4">
+                        </video>
+                    </div>
+                    
+                    <!-- Info Section -->
+                    <div class="p-8 space-y-8">
+                        <div>
+                            <p id="modal-description" class="text-slate-300 leading-relaxed font-medium"></p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Target Muscles</p>
+                                <p id="modal-muscles" class="text-sm font-bold text-primary"></p>
+                            </div>
+                            <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Sets & Reps</p>
+                                <p id="modal-sets" class="text-sm font-bold text-slate-200"></p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-sm">checklist</span> Execution Steps
+                            </h4>
+                            <ul id="modal-steps" class="space-y-3 text-sm text-slate-400">
+                            </ul>
+                        </div>
+
+                        <div class="bg-red-500/5 border border-red-500/10 p-4 rounded-2xl">
+                            <h4 class="text-xs font-black text-red-400/80 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">report</span> Avoid These Mistakes
+                            </h4>
+                            <ul id="modal-mistakes" class="space-y-2 text-xs text-red-200/50">
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="p-6 border-t border-white/5 bg-black/20 flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <span class="size-2 rounded-full bg-primary"></span>
+                        <span id="modal-difficulty" class="text-[10px] font-black uppercase text-slate-500">Medium</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-sm">schedule</span>
+                        <span id="modal-when" class="text-[10px] font-black uppercase text-slate-500">After training</span>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="px-8 py-3 bg-primary text-background-dark font-black rounded-full hover:scale-105 active:scale-95 transition-all text-sm uppercase tracking-tighter">Got it, Coach</button>
+            </div>
+        </div>
     </div>
 </body>
 

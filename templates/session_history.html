@@ -93,10 +93,18 @@
                             <h3 class="text-white font-bold">Historical Workload Metrics</h3>
                             <p class="text-[#92c9a9] text-xs">A complete record of all training and match sessions logged for your team.</p>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-3">
                             <span class="text-[10px] font-black uppercase text-[#92c9a9] tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
                                 {{ history|length }} Entries Found
                             </span>
+                            {% if history|length > 0 %}
+                            <form action="/clear_history" method="POST" onsubmit="return confirm('Are you sure you want to PERMANENTLY delete all historical workload metrics? This cannot be undone.');">
+                                <button type="submit" class="text-[10px] font-black uppercase text-red-400 tracking-widest bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">delete</span>
+                                    Clear All
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -111,6 +119,7 @@
                                     <th class="px-6 py-4">Sessions per Week</th>
                                     <th class="px-6 py-4">Minutes Played</th>
                                     <th class="px-6 py-4">Matches per Week</th>
+                                    <th class="px-6 py-4">Active Injury</th>
                                     <th class="px-6 py-4 text-right">Participation</th>
                                 </tr>
                             </thead>
@@ -167,6 +176,13 @@
                                             {{ item.match_freq or '-' }}
                                         </span>
                                     </td>
+                                    <td class="px-6 py-5 text-center">
+                                        {% if item.active_injury == 'Yes' %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">Yes</span>
+                                        {% elif item.active_injury == 'No' %}
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/20 text-primary border border-primary/30">No</span>
+                                        {% else %}-{% endif %}
+                                    </td>
                                     <td class="px-6 py-5 text-right">
                                         {% set status = item.participation_status or 'Full Participation' %}
                                         <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase
@@ -179,7 +195,7 @@
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="8" class="px-8 py-12 text-center">
+                                    <td colspan="9" class="px-8 py-12 text-center">
                                         <div class="flex flex-col items-center gap-3 opacity-40">
                                             <span class="material-symbols-outlined text-4xl">inventory_2</span>
                                             <p class="text-sm">No session entries found in history.</p>

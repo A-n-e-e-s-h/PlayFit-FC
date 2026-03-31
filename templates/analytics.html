@@ -91,10 +91,6 @@
                     href="/signout">Sign Out</a>
             </nav>
             <div class="flex items-center gap-4">
-                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary"
-                    data-alt="User profile picture of a coach"
-                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBgq_CN2ADZdtm68TVtTN2F2Ows1Dv8nH9EFwyu7MMIEflaUi67Q3huHfFRbklbfEVrbJg_Wx7YPN2jE8uNUHoLaJS5suhkgg5yBuejZOrHAR-XB7ajZfNqWJqW4YW_J7jXNiU6g2y29z6KYyj3K7BeCa7MvPeCB_eQTrUZ55qFkJCoY8xq5phWIvbJviQ1JgmpBkYPkX_SYkvox5DtFkB0HkUKfOfVhDL83xSBoM9B4bCEHfaQi0EmFwCefrk743baXKiI2FxF790");'>
-                </div>
             </div>
         </div>
     </header>
@@ -115,32 +111,32 @@
             <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Avg. Squad Risk</p>
                 <div class="flex items-end gap-2 mt-2">
-                    <p class="text-3xl font-black text-primary">24%</p>
+                    <p class="text-3xl font-black text-primary">{{ stats.avg_risk }}%</p>
                     <span class="text-xs text-red-400 mb-1 flex items-center">
-                        <span class="material-symbols-outlined text-xs">arrow_upward</span> 3%
+                        <span class="material-symbols-outlined text-xs">arrow_upward</span> {{ stats.risk_trend }}%
                     </span>
                 </div>
             </div>
             <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Active Injuries</p>
                 <div class="flex items-end gap-2 mt-2">
-                    <p class="text-3xl font-black text-slate-900 dark:text-white">4</p>
+                    <p class="text-3xl font-black text-slate-900 dark:text-white">{{ stats.active_injuries }}</p>
                     <span class="text-xs text-primary mb-1 flex items-center">
-                        <span class="material-symbols-outlined text-xs">arrow_downward</span> 2
+                        <span class="material-symbols-outlined text-xs">arrow_downward</span> {{ stats.injury_trend }}
                     </span>
                 </div>
             </div>
             <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">High Risk Players</p>
                 <div class="flex items-end gap-2 mt-2">
-                    <p class="text-3xl font-black text-orange-400">3</p>
+                    <p class="text-3xl font-black text-orange-400">{{ stats.high_risk_count }}</p>
                     <span class="text-xs text-slate-400 mb-1">Stability</span>
                 </div>
             </div>
             <div class="bg-white dark:bg-[#1b2e23] p-5 rounded-xl border border-slate-200 dark:border-[#2d5c41]">
                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Recovery Timeline</p>
                 <div class="flex items-end gap-2 mt-2">
-                    <p class="text-3xl font-black text-slate-900 dark:text-white">12.4 d</p>
+                    <p class="text-3xl font-black text-slate-900 dark:text-white">{{ stats.avg_recovery }} d</p>
                     <span class="text-xs text-slate-400 mb-1">Avg. Return</span>
                 </div>
             </div>
@@ -151,34 +147,22 @@
             <div
                 class="flex flex-col lg:flex-row lg:items-center justify-between px-6 border-b border-slate-100 dark:border-[#234833]">
                 <div class="flex gap-8 overflow-x-auto no-scrollbar">
-                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-primary pb-3 pt-4"
-                        href="#">
+                    <a class="flex flex-col items-center justify-center border-b-[3px] {% if selected_squad == 'all' %}border-b-primary text-primary{% else %}border-b-transparent text-slate-400 hover:text-primary{% endif %} pb-3 pt-4 transition-all"
+                        href="{{ url_for('analytics', squad='all') }}">
                         <p class="text-sm font-bold whitespace-nowrap">All Squads</p>
                     </a>
-                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-slate-500 dark:text-[#92c9a9] hover:text-white pb-3 pt-4 transition-colors"
-                        href="#">
-                        <p class="text-sm font-bold whitespace-nowrap">First Team</p>
+                    {% for squad in available_squads %}
+                    <a class="flex flex-col items-center justify-center border-b-[3px] {% if selected_squad == squad %}border-b-primary text-primary{% else %}border-b-transparent text-slate-400 hover:text-primary{% endif %} pb-3 pt-4 transition-all"
+                        href="{{ url_for('analytics', squad=squad) }}">
+                        <p class="text-sm font-bold whitespace-nowrap">
+                            {% if squad == 'mens' %}Men's Team
+                            {% elif squad == 'womens' %}Women's Team
+                            {% else %}{{ squad.capitalize() }}{% endif %}
+                        </p>
                     </a>
-                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-slate-500 dark:text-[#92c9a9] hover:text-white pb-3 pt-4 transition-colors"
-                        href="#">
-                        <p class="text-sm font-bold whitespace-nowrap">U21</p>
-                    </a>
-                    <a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-slate-500 dark:text-[#92c9a9] hover:text-white pb-3 pt-4 transition-colors"
-                        href="#">
-                        <p class="text-sm font-bold whitespace-nowrap">Academy</p>
-                    </a>
+                    {% endfor %}
                 </div>
                 <div class="flex items-center gap-2 py-3 lg:py-0">
-                    <button class="p-2 text-slate-400 hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined">calendar_today</span>
-                    </button>
-                    <button class="p-2 text-slate-400 hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined">group</span>
-                    </button>
-                    <button class="p-2 text-slate-400 hover:text-primary transition-colors">
-                        <span class="material-symbols-outlined">show_chart</span>
-                    </button>
-                    <div class="h-6 w-[1px] bg-slate-200 dark:bg-[#234833] mx-2"></div>
                     <button
                         class="flex items-center justify-center rounded-lg h-9 bg-primary px-4 text-background-dark gap-2 text-sm font-bold">
                         <span class="material-symbols-outlined text-[18px]">download</span>
@@ -186,28 +170,7 @@
                     </button>
                 </div>
             </div>
-            <div class="flex gap-3 p-4 flex-wrap bg-slate-50 dark:bg-transparent">
-                <button
-                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-white dark:bg-[#234833] pl-4 pr-3 hover:bg-primary/10 transition-colors">
-                    <p class="text-slate-700 dark:text-white text-sm font-medium">Last 30 Days</p>
-                    <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
-                </button>
-                <button
-                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-white dark:bg-[#234833] pl-4 pr-3 hover:bg-primary/10 transition-colors">
-                    <p class="text-slate-700 dark:text-white text-sm font-medium">All Positions</p>
-                    <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
-                </button>
-                <button
-                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-primary/20 dark:bg-primary/30 pl-4 pr-3 border-primary/50">
-                    <p class="text-primary text-sm font-bold">High Risk Only</p>
-                    <span class="material-symbols-outlined text-sm">close</span>
-                </button>
-                <button
-                    class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg border border-slate-200 dark:border-none bg-white dark:bg-[#234833] pl-4 pr-3 hover:bg-primary/10 transition-colors">
-                    <p class="text-slate-700 dark:text-white text-sm font-medium">Fatigue &gt; 70%</p>
-                    <span class="material-symbols-outlined text-sm">keyboard_arrow_down</span>
-                </button>
-            </div>
+
         </div>
         <!-- Analytics Grid -->
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -218,11 +181,7 @@
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-primary">scatter_plot</span>
                         <h3 class="text-lg font-bold">Fatigue vs. Injury History</h3>
-                        <span class="material-symbols-outlined text-slate-400 text-sm cursor-help">info</span>
                     </div>
-                    <button class="p-2 hover:bg-slate-100 dark:hover:bg-[#234833] rounded-full text-slate-400">
-                        <span class="material-symbols-outlined">fullscreen</span>
-                    </button>
                 </div>
                 <div class="flex-1 p-6 relative chart-grid flex items-center justify-center">
                     <!-- Placeholder Chart Visualization -->
@@ -236,34 +195,14 @@
                             class="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest text-slate-500 dark:text-[#92c9a9]">
                             Fatigue Index (%)</div>
                         <!-- Scatter Points -->
-                        <div class="absolute bottom-[20%] left-[30%] group">
-                            <div class="size-3 bg-primary rounded-full ring-4 ring-primary/20 cursor-pointer"></div>
-                            <div
-                                class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                                J. Smith: F: 42%, Inj: 1
+                        {% for point in scatter_data %}
+                        <div class="absolute group" style="bottom: {{ point.bottom_pct }}%; left: {{ point.left_pct }}%;">
+                            <div class="{{ point.size_class }} {{ point.color_class }} rounded-full ring-4 cursor-pointer"></div>
+                            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                {{ point.name }}: F: {{ point.fatigue_index | round | int }}%, Inj: {{ point.injuries }} {% if point.status_label != 'Optimal' %}({{ point.status_label }}){% endif %}
                             </div>
                         </div>
-                        <div class="absolute bottom-[60%] left-[80%] group">
-                            <div class="size-4 bg-red-500 rounded-full ring-4 ring-red-500/20 cursor-pointer"></div>
-                            <div
-                                class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                M. Rossi: F: 88%, Inj: 4 (CRITICAL)
-                            </div>
-                        </div>
-                        <div class="absolute bottom-[40%] left-[65%] group">
-                            <div class="size-3 bg-orange-400 rounded-full ring-4 ring-orange-400/20 cursor-pointer">
-                            </div>
-                        </div>
-                        <div class="absolute bottom-[10%] left-[15%] group">
-                            <div class="size-3 bg-primary rounded-full ring-4 ring-primary/20 cursor-pointer"></div>
-                        </div>
-                        <div class="absolute bottom-[25%] left-[50%] group">
-                            <div class="size-3 bg-primary rounded-full ring-4 ring-primary/20 cursor-pointer"></div>
-                        </div>
-                        <div class="absolute bottom-[75%] left-[45%] group">
-                            <div class="size-3 bg-orange-400 rounded-full ring-4 ring-orange-400/20 cursor-pointer">
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
                 </div>
                 <div
@@ -276,7 +215,6 @@
                         <span class="flex items-center gap-1"><i class="size-2 rounded-full bg-red-500"></i> High
                             Risk</span>
                     </div>
-                    <span class="text-slate-500 dark:text-[#92c9a9]">Updated: 2h ago</span>
                 </div>
             </div>
             <!-- Risk Distribution Bar Chart -->
@@ -286,60 +224,26 @@
                     <div class="flex items-center gap-3">
                         <span class="material-symbols-outlined text-primary">bar_chart</span>
                         <h3 class="text-lg font-bold">Risk Distribution by Position</h3>
-                        <span class="material-symbols-outlined text-slate-400 text-sm cursor-help">info</span>
                     </div>
-                    <button class="p-2 hover:bg-slate-100 dark:hover:bg-[#234833] rounded-full text-slate-400">
-                        <span class="material-symbols-outlined">fullscreen</span>
-                    </button>
                 </div>
                 <div class="flex-1 p-8 flex flex-col justify-between">
-                    <!-- Forward -->
+                    {% for pos in position_risk %}
                     <div class="space-y-2">
                         <div class="flex justify-between text-sm">
-                            <span class="font-medium">Forwards</span>
-                            <span class="font-bold">62% Risk</span>
+                            <span class="font-medium">{{ pos.name }}</span>
+                            <span class="font-bold">{{ pos.risk_pct }}% Risk</span>
                         </div>
                         <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
-                            <div class="bg-orange-400 h-full" style="width: 62%"></div>
+                            <div class="{{ pos.color }} h-full" style="width: {{ pos.risk_pct }}%;"></div>
                         </div>
                     </div>
-                    <!-- Midfield -->
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <span class="font-medium">Midfielders</span>
-                            <span class="font-bold">34% Risk</span>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
-                            <div class="bg-primary h-full" style="width: 34%"></div>
-                        </div>
-                    </div>
-                    <!-- Defense -->
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <span class="font-medium">Defenders</span>
-                            <span class="font-bold">18% Risk</span>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
-                            <div class="bg-primary h-full" style="width: 18%"></div>
-                        </div>
-                    </div>
-                    <!-- Goalkeepers -->
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <span class="font-medium">Goalkeepers</span>
-                            <span class="font-bold">12% Risk</span>
-                        </div>
-                        <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
-                            <div class="bg-primary h-full" style="width: 12%"></div>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
                 <div class="p-6 bg-primary/5 border-t border-slate-100 dark:border-[#234833]">
                     <div class="flex gap-4 items-start">
-                        <span class="material-symbols-outlined text-primary text-xl mt-1">auto_awesome</span>
+                        <span class="material-symbols-outlined {{ insight_data.color }} text-xl mt-1">{{ insight_data.icon }}</span>
                         <p class="text-sm text-slate-600 dark:text-[#92c9a9] italic leading-relaxed">
-                            "Defenders show a 15% increase in fatigue over the last 7 days. Correlation suggests a
-                            lighter recovery session for the defensive unit before Saturday's fixture."
+                            {{ insight_data.text }}
                         </p>
                     </div>
                 </div>
@@ -364,30 +268,10 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-[#234833]">
-                        <tr class="hover:bg-slate-50 dark:hover:bg-[#1a3526] transition-colors">
-                            <td class="px-6 py-4 font-medium">Weekly Fatigue Correlation - WK 34</td>
-                            <td class="px-6 py-4"><span
-                                    class="px-2 py-1 rounded bg-slate-100 dark:bg-[#234833] text-[10px] font-bold">PDF</span>
-                            </td>
-                            <td class="px-6 py-4 text-slate-500 dark:text-[#92c9a9] text-sm">Oct 12, 2023</td>
-                            <td class="px-6 py-4 text-sm">Coach {{ user.username.split('@')[0] | capitalize }}</td>
-                            <td class="px-6 py-4 text-right">
-                                <button class="text-primary hover:text-white transition-colors">
-                                    <span class="material-symbols-outlined">download</span>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 dark:hover:bg-[#1a3526] transition-colors">
-                            <td class="px-6 py-4 font-medium">U21 Risk Distribution Matrix</td>
-                            <td class="px-6 py-4"><span
-                                    class="px-2 py-1 rounded bg-slate-100 dark:bg-[#234833] text-[10px] font-bold text-primary">CSV</span>
-                            </td>
-                            <td class="px-6 py-4 text-slate-500 dark:text-[#92c9a9] text-sm">Oct 10, 2023</td>
-                            <td class="px-6 py-4 text-sm">System Automated</td>
-                            <td class="px-6 py-4 text-right">
-                                <button class="text-primary hover:text-white transition-colors">
-                                    <span class="material-symbols-outlined">download</span>
-                                </button>
+                        <!-- No reports generated yet -->
+                        <tr>
+                            <td colspan="5" class="px-6 py-10 text-center text-slate-400 dark:text-[#92c9a9] italic text-sm">
+                                No reports generated yet.
                             </td>
                         </tr>
                     </tbody>

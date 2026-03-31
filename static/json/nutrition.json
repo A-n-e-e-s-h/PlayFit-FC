@@ -1,0 +1,78 @@
+{
+    "hydration": {
+        "title": "Hydration Protocol",
+        "description": "Optimal fluid intake is the foundation of athletic performance and core body temperature regulation.",
+        "guidelines": [
+            "Daily Base: 30–40 ml per kg of body weight.",
+            "Pre-Training: 5–7 ml/kg of water 4 hours before exercise.",
+            "During Training: 150–250 ml every 15–20 mins (add electrolytes for sessions >60 mins).",
+            "Post-Training: 1.25–1.5L of fluid for every 1kg of weight lost."
+        ],
+        "tips": [
+            "Always carry a reusable water bottle.",
+            "Add a pinch of sea salt or electrolytes to water during high-intensity sessions.",
+            "Drink consistently, don't wait until you feel thirsty."
+        ],
+        "tag": "Recovery Boost Level: High"
+    },
+    "pre_training": {
+        "title": "Pre-Training Nutrition",
+        "description": "Fueling your muscles with the right energy sources to sustain high-intensity efforts.",
+        "what_to_eat": [
+            "Focus on easily digestible Carbohydrates.",
+            "Include a small amount of lean Protein.",
+            "Keep Fats and Fiber low to avoid stomach discomfort."
+        ],
+        "timing": "Aim to eat 30–90 minutes before your session begins.",
+        "examples": [
+            "Banana with a small amount of peanut butter",
+            "A small bowl of oats with berries",
+            "Two slices of white toast with honey",
+            "Low-fat yogurt with a handful of granola"
+        ],
+        "tag": "Performance Level: Maximum"
+    },
+    "post_training": {
+        "title": "Post-Training Recovery",
+        "description": "Repair muscle tissue and replenish glycogen stores immediately after exertion.",
+        "protein": "20–30g of high-quality protein (Whey, Chicken, Greek Yogurt).",
+        "carbs": "0.8–1.2g/kg of carbohydrates to refill energy stores.",
+        "timing": "Consume within 30–60 minutes post-training (The 'recovery window').",
+        "examples": [
+            "Grilled chicken breast with white rice and steamed greens",
+            "Whey protein shake with a medium banana",
+            "Chocolate milk (Excellent 3:1 Carb to Protein ratio)",
+            "Greek yogurt with honey and sliced almonds"
+        ],
+        "tag": "Recovery Boost Level: High"
+    },
+    "anti_inflammatory": {
+        "title": "Anti-Inflammatory Nutrition",
+        "description": "Natural compounds that help dampen systemic inflammation and accelerate tissue repair.",
+        "foods": [
+            "Omega-3s: Fatty fish (Salmon, Mackerel), Walnuts, Chia Seeds.",
+            "Fruits: Blueberries, Tart Cherries, Strawberries, Oranges.",
+            "Spices: Turmeric (curcumin), Ginger, Garlic."
+        ],
+        "benefits": "These foods help reduce muscle soreness (DOMS), protect joints, and support the immune system during heavy training cycles.",
+        "tag": "Injury Risk Reduction: Vital"
+    },
+    "performance_tips": [
+        {
+            "tip": "Stay Hydrated Throughout the Day",
+            "detail": "Dehydration of just 2% can significantly impair cognitive function and physical power."
+        },
+        {
+            "tip": "Avoid Junk/Processed Food Before Training",
+            "detail": "High-sugar/high-fat foods cause energy crashes and digestive sluggishness."
+        },
+        {
+            "tip": "Maintain Balanced Meals",
+            "detail": "Ensure every main meal has a quality protein source, complex carbs, and healthy fats."
+        },
+        {
+            "tip": "Don’t Skip Recovery Nutrition",
+            "detail": "Consistent post-run fueling reduces the risk of Overreaching and bone stress injuries."
+        }
+    ]
+}

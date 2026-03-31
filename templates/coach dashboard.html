@@ -107,7 +107,9 @@
                         <div class="flex flex-col">
                             <p class="text-sm font-bold truncate">Coach {{ user.username.split('@')[0] | capitalize }}
                             </p>
-                            <p class="text-xs text-slate-500 dark:text-[#92c9a9]">Head Performance</p>
+                            <p class="text-xs text-slate-500 dark:text-[#92c9a9]">
+                                {% if current_user.sport %}{{ current_user.sport | capitalize }} | {% endif %}Head Performance
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -201,7 +203,7 @@
                             <div>
                                 <h4 class="text-slate-900 dark:text-white font-bold text-lg">Workload vs. Fatigue</h4>
                                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm">Cumulative team performance
-                                    metrics (Last 7 Days)</p>
+                                    metrics</p>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]"><span
@@ -230,7 +232,7 @@
                             </div>
                             <div class="flex justify-between px-2">
                                 {% for label in chart_labels %}
-                                    <span class="text-xs font-bold text-slate-400 dark:text-[#92c9a9]">{{ label }}</span>
+                                    <span class="text-[10px] text-slate-400 dark:text-[#92c9a9] rotate-45 inline-block origin-left mt-1 whitespace-nowrap">{{ label }}</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -262,8 +264,8 @@
                     </a>
                 </div>
                 <!-- Team Injury Risk Table -->
-                <div
-                    class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] rounded-xl overflow-hidden shadow-sm">
+                <div id="team-injury-table"
+                    class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] rounded-xl overflow-hidden shadow-sm transition-opacity duration-300">
                     <div
                         class="px-6 py-5 border-b border-slate-200 dark:border-[#326748] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 class="text-slate-900 dark:text-white text-lg font-bold">Team Injury Risk Status</h2>
@@ -275,8 +277,8 @@
                                     class="bg-slate-50 dark:bg-[#112218]/50 text-slate-500 dark:text-[#92c9a9] text-xs uppercase tracking-wider font-bold">
                                     <th class="px-6 py-4">Player Name</th>
                                     <th class="px-6 py-4">Position</th>
-                                    <th class="px-6 py-4">Last Session</th>
                                     <th class="px-6 py-4">Risk Level</th>
+                                    <th class="px-6 py-4">Top Risk Factor</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-[#326748]">
@@ -291,7 +293,6 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-sm font-medium">{{ player.position or 'N/A' }}</td>
-                                    <td class="px-6 py-4 text-sm text-slate-500 dark:text-[#92c9a9]">{{ player.last_session }}</td>
                                     <td class="px-6 py-4">
                                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide 
                                             {% if player.risk_level == 'High' %}bg-red-500/10 text-red-500 border border-red-500/20
@@ -299,6 +300,16 @@
                                             {% else %}bg-primary/10 text-primary border border-primary/20{% endif %}">
                                             {{ player.risk_level }}
                                         </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-xs font-semibold text-slate-600 dark:text-[#92c9a9]">
+                                        {% if player.top_factors %}
+                                            <span class="flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-xs text-orange-400">psychology</span>
+                                                {{ player.top_factors[0].feature }}
+                                            </span>
+                                        {% else %}
+                                            <span class="opacity-40 italic">Baseline</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% else %}
@@ -315,22 +326,73 @@
                     </div>
                     <div
                         class="px-6 py-4 bg-slate-50 dark:bg-[#112218]/50 border-t border-slate-200 dark:border-[#326748] flex items-center justify-between">
-                        <span class="text-xs text-slate-500 dark:text-[#92c9a9]">Showing {{ total_players }} of {{ total_players }} players</span>
+                        <span class="text-xs text-slate-500 dark:text-[#92c9a9]">
+                            Showing {{ start_count }}-{{ end_count }} of {{ total_players }} players
+                        </span>
                         <div class="flex gap-2">
-                            <button
-                                class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-400 cursor-not-allowed">
+                            {% if current_page > 1 %}
+                            <a href="/dashboard?page={{ current_page - 1 }}#team-injury-table"
+                                class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-600 dark:text-white hover:border-primary transition-colors">
+                                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                            </a>
+                            {% else %}
+                            <button disabled
+                                class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-400 cursor-not-allowed opacity-50">
                                 <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                             </button>
-                            <button
+                            {% endif %}
+
+                            {% if current_page < total_pages %}
+                            <a href="/dashboard?page={{ current_page + 1 }}#team-injury-table"
                                 class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-600 dark:text-white hover:border-primary transition-colors">
                                 <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                            </a>
+                            {% else %}
+                            <button disabled
+                                class="p-1.5 rounded bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] text-slate-400 cursor-not-allowed opacity-50">
+                                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
+    <script>
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href*=\'page=\']');
+            if (link && link.closest('#team-injury-table')) {
+                e.preventDefault();
+                loadTablePage(link.getAttribute('href'));
+            }
+        });
+        async function loadTablePage(url) {
+            const tableContainer = document.getElementById('team-injury-table');
+            if (!tableContainer) return;
+            tableContainer.style.opacity = '0.5';
+            tableContainer.style.pointerEvents = 'none';
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newTable = doc.getElementById('team-injury-table');
+                if (newTable) {
+                    tableContainer.innerHTML = newTable.innerHTML;
+                    window.history.pushState({ path: url }, '', url);
+                }
+            } catch (err) {
+                window.location.href = url;
+            } finally {
+                tableContainer.style.opacity = '1';
+                tableContainer.style.pointerEvents = 'auto';
+            }
+        }
+        window.onpopstate = function(event) {
+            if (window.location.href.includes('page=')) loadTablePage(window.location.href);
+        };
+    </script>
 </body>
 
 </html>
