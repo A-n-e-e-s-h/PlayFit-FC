@@ -186,34 +186,3 @@ http://127.0.0.1:5000/
 * Submit wellness data
 * View risk score
 * Track performance trends
-
----
-
-## 📊 Key Concepts Used
-
-* **ACWR (Acute:Chronic Workload Ratio)**
-* Time-series analysis
-* Feature engineering
-* Predictive modeling
-* Sports science principles
-
----
-
-## 🔥 What Makes This Project Special?
-
-✅ Full-stack AI system
-✅ Real-world sports science logic
-✅ Multi-user ecosystem (Coach + Player)
-✅ Data-driven decision support
-✅ Professional analytics & reporting
-
-👉 This is not just a project — it's a **sports analytics platform prototype**
-
-
-## 🚀 Future Roadmap
-
-* 🔄 Continuous ML retraining
-* 🧠 Explainable AI (SHAP)
-* 📱 Mobile app
-* 📡 Real-time notifications
-* 🛰️ GPS & wearable integration
