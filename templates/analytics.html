@@ -11,9 +11,6 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
         rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -163,8 +160,10 @@
                     {% endfor %}
                 </div>
                 <div class="flex items-center gap-2 py-3 lg:py-0">
-                    <button
-                        class="flex items-center justify-center rounded-lg h-9 bg-primary px-4 text-background-dark gap-2 text-sm font-bold">
+                    <input type="date" id="reportDate" 
+                        class="h-9 px-3 rounded-lg border border-slate-200 dark:border-[#234833] bg-transparent text-sm text-slate-600 dark:text-slate-300 outline-none focus:border-primary transition-all" />
+                    <button onclick="downloadReport()"
+                        class="flex items-center justify-center rounded-lg h-9 bg-primary px-4 text-background-dark gap-2 text-sm font-bold hover:bg-green-400 transition-colors">
                         <span class="material-symbols-outlined text-[18px]">download</span>
                         <span>Download PDF</span>
                     </button>
@@ -196,10 +195,13 @@
                             Fatigue Index (%)</div>
                         <!-- Scatter Points -->
                         {% for point in scatter_data %}
-                        <div class="absolute group" style="bottom: {{ point.bottom_pct }}%; left: {{ point.left_pct }}%;">
-                            <div class="{{ point.size_class }} {{ point.color_class }} rounded-full ring-4 cursor-pointer"></div>
-                            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                {{ point.name }}: F: {{ point.fatigue_index | round | int }}%, Inj: {{ point.injuries }} {% if point.status_label != 'Optimal' %}({{ point.status_label }}){% endif %}
+                        <div class="absolute group dynamic-pos" data-bottom="{{ point.bottom_pct|default(0) }}%" data-left="{{ point.left_pct|default(0) }}%">
+                            <div class="{{ point.size_class }} {{ point.color_class }} rounded-full ring-4 cursor-pointer {% if not point.has_wellness %}opacity-40 grayscale-[0.5]{% endif %} transition-all duration-200 hover:scale-125"></div>
+                            <div class="absolute bottom-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-3 rounded-lg border border-slate-700 shadow-2xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-8 after:border-transparent after:border-t-slate-900">
+                                <span class="font-bold">{{ point.name }}</span><br>
+                                <span class="text-slate-400 font-medium">Fatigue:</span> {% if point.has_wellness %}<span class="text-primary font-bold">{{ point.fatigue_index | round | int }}%</span>{% else %}<span class="text-slate-500 font-bold">N/A</span>{% endif %}<br>
+                                <span class="text-slate-400 font-medium">Injuries:</span> <span class="text-white font-bold">{{ point.injuries }}</span>
+                                {% if point.status_label != 'Optimal' %}<br><span class="text-orange-400 font-black uppercase text-[8px]">{{ point.status_label }}</span>{% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -234,7 +236,7 @@
                             <span class="font-bold">{{ pos.risk_pct }}% Risk</span>
                         </div>
                         <div class="w-full bg-slate-100 dark:bg-[#234833] h-3 rounded-full overflow-hidden">
-                            <div class="{{ pos.color }} h-full" style="width: {{ pos.risk_pct }}%;"></div>
+                            <div class="{{ pos.color }} h-full dynamic-width" data-width="{{ pos.risk_pct|default(0) }}%"></div>
                         </div>
                     </div>
                     {% endfor %}
@@ -254,26 +256,57 @@
                 <div
                     class="px-6 py-4 border-b border-slate-100 dark:border-[#234833] flex justify-between items-center">
                     <h3 class="font-bold">Generated Reports</h3>
-                    <button class="text-primary text-sm font-bold hover:underline">View All Archives</button>
+                    <a href="{{ url_for('report_archives') }}" class="text-primary text-sm font-bold hover:underline">View All Archives</a>
                 </div>
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr
                             class="bg-slate-50 dark:bg-[#1b2e23] text-slate-500 dark:text-[#92c9a9] text-xs uppercase tracking-widest">
                             <th class="px-6 py-3 font-semibold">Report Name</th>
-                            <th class="px-6 py-3 font-semibold">Type</th>
+                            <th class="px-6 py-3 font-semibold">Squad</th>
                             <th class="px-6 py-3 font-semibold">Generated Date</th>
                             <th class="px-6 py-3 font-semibold">Created By</th>
                             <th class="px-6 py-3 font-semibold text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-[#234833]">
-                        <!-- No reports generated yet -->
-                        <tr>
-                            <td colspan="5" class="px-6 py-10 text-center text-slate-400 dark:text-[#92c9a9] italic text-sm">
-                                No reports generated yet.
-                            </td>
-                        </tr>
+                        {% if generated_reports %}
+                            {% for report in generated_reports %}
+                                <tr class="hover:bg-slate-50 dark:hover:bg-[#1a3225] transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-slate-900 dark:text-white">{{ report.report_name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase">
+                                            {% if report.squad == 'all' %}All Squads
+                                            {% elif report.squad == 'mens' %}Men's Team
+                                            {% elif report.squad == 'womens' %}Women's Team
+                                            {% else %}{{ report.squad.capitalize() }}{% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                        {{ report.generated_date }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                        {{ report.coach_name or 'System' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <a href="/download_report?date={{ report.report_date }}&squad={{ report.squad }}" 
+                                            class="text-primary hover:text-primary/80 transition-colors">
+                                            <span class="material-symbols-outlined text-lg">download</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr id="emptyRow">
+                                <td colspan="5" class="px-6 py-10 text-center text-slate-400 dark:text-[#92c9a9] italic text-sm">
+                                    No reports generated yet.
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -294,6 +327,33 @@
             </div>
         </div>
     </footer>
+    <script>
+        function downloadReport() {
+            const date = document.getElementById('reportDate').value;
+            const squad = "{{ selected_squad }}";
+            let url = `/download_report?squad=${squad}`;
+            if (date) {
+                url += `&date=${date}`;
+            }
+            window.location.href = url;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('reportDate');
+            if (dateInput) dateInput.value = today;
+
+            // Apply dynamic styles from data attributes
+            document.querySelectorAll('.dynamic-pos').forEach(el => {
+                if (el.dataset.bottom) el.style.bottom = el.dataset.bottom;
+                if (el.dataset.left) el.style.left = el.dataset.left;
+            });
+            document.querySelectorAll('.dynamic-width').forEach(el => {
+                if (el.dataset.width) el.style.width = el.dataset.width;
+            });
+        });
+    </script>
 </body>
 
 </html>

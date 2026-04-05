@@ -10,8 +10,6 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;family=Noto+Sans:wght@100..900&amp;display=swap"
         rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
         rel="stylesheet" />
@@ -175,7 +173,7 @@
                                             </span>
                                         </div>
                                         <div class="w-full bg-slate-100 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
-                                            <div class="h-full {% if factor.impact > 0 %}bg-red-500{% else %}bg-primary{% endif %}" style="width: {{ factor.width_pct }}%;"></div>
+                                            <div class="h-full {% if factor.impact > 0 %}bg-red-500{% else %}bg-primary{% endif %} dynamic-width" data-width="{{ factor.width_pct }}%"></div>
                                         </div>
                                         {% endfor %}
                                     </div>
@@ -345,6 +343,13 @@
             </div>
         </main>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Apply dynamic styles from data attributes
+            document.querySelectorAll('.dynamic-width').forEach(el => {
+                if (el.dataset.width) el.style.width = el.dataset.width;
+            });
+        });
+    </script>
 </body>
-
 </html>

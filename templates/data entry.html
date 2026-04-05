@@ -210,22 +210,6 @@
             </div>
             <!-- Right Column: Import & Health Checks -->
             <div class="xl:col-span-4 space-y-6">
-                <!-- Quick Import Card -->
-                <div class="bg-[#1a2e22] border border-[#234833] rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-primary">cloud_upload</span>
-                        <h3 class="text-white font-bold">Import CSV/Excel</h3>
-                    </div>
-                    <div id="upload-zone"
-                        class="border-2 border-dashed border-[#326748] rounded-xl p-8 flex flex-col items-center justify-center text-center group hover:border-primary transition-colors cursor-pointer bg-[#112218]/50">
-                        <span
-                            class="material-symbols-outlined text-4xl text-[#92c9a9] mb-3 group-hover:text-primary transition-colors">description</span>
-                        <p class="text-white text-sm font-bold mb-1">Click to upload or drag &amp; drop</p>
-
-                        <input type="file" id="csv-file-input" class="hidden" accept=".csv, .xlsx, .xls" />
-                    </div>
-
-                </div>
                 <!-- Validation & Alerts Card -->
                 <div class="bg-[#1a2e22] border border-[#234833] rounded-xl overflow-hidden">
                     <div class="px-6 py-4 bg-[#234833]/30 border-b border-[#234833]">
@@ -334,8 +318,7 @@
         const header2 = document.getElementById('header-2');
         const header3 = document.getElementById('header-3');
         const tableBody = document.getElementById('workload-table-body');
-        const fileInput = document.getElementById('csv-file-input');
-        const uploadZone = document.getElementById('upload-zone');
+
 
         function updateHeaders() {
             const selectedType = sessionTypeSelect.value;
@@ -372,48 +355,6 @@
 
         sessionTypeSelect.addEventListener('change', updateHeaders);
 
-        // Upload Logic
-        uploadZone.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileUpload(e.target.files[0]);
-            }
-        });
-
-        async function handleFileUpload(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                uploadZone.innerHTML = '<p class="text-primary text-sm font-bold">Uploading...</p>';
-                const response = await fetch('/import_training_data', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || 'Upload failed');
-                }
-
-                const data = await response.json();
-                populateTable(data.players);
-
-                uploadZone.innerHTML = `
-                    <span class="material-symbols-outlined text-4xl text-primary mb-3">check_circle</span>
-                    <p class="text-white text-sm font-bold mb-1">Imported Successfully</p>
-                    <p class="text-[#92c9a9] text-xs">${file.name}</p>
-                `;
-            } catch (error) {
-                console.error(error);
-                uploadZone.innerHTML = `
-                    <span class="material-symbols-outlined text-4xl text-red-500 mb-3">error</span>
-                    <p class="text-white text-sm font-bold mb-1">Upload Error</p>
-                    <p class="text-[#92c9a9] text-xs px-4">${error.message}</p>
-                `;
-            }
-        }
 
         function populateTable(players) {
             tableBody.innerHTML = '';

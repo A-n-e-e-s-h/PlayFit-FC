@@ -197,8 +197,8 @@
                 <!-- Charts Section -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     <!-- Main Chart -->
-                    <div
-                        class="lg:col-span-2 bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl">
+                    <div id="workload-fatigue-chart"
+                        class="lg:col-span-2 bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl transition-opacity duration-300 relative">
                         <div class="flex items-center justify-between mb-6">
                             <div>
                                 <h4 class="text-slate-900 dark:text-white font-bold text-lg">Workload vs. Fatigue</h4>
@@ -206,27 +206,62 @@
                                     metrics</p>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]"><span
-                                        class="w-3 h-3 rounded-full bg-primary"></span> Workload</span>
-                                <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]"><span
-                                        class="w-3 h-3 rounded-full bg-slate-400 dark:bg-[#326748]"></span>
-                                    Fatigue</span>
+                                <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]">
+                                    <span class="w-3 h-3 rounded-full bg-slate-400 dark:bg-[#326748]"></span> Workload
+                                </span>
+                                <span class="flex items-center gap-1 text-xs text-slate-500 dark:text-[#92c9a9]">
+                                    <span class="w-3 h-3 rounded-full bg-primary"></span> Fatigue
+                                </span>
                             </div>
                         </div>
-                        <div class="h-64 flex flex-col justify-end gap-4">
+
+                        <!-- Left Navigation Button -->
+                        {% if chart_page < total_chart_pages %}
+                        <a href="/dashboard?chart_page={{ chart_page + 1 }}"
+                            class="absolute left-1 md:-left-4 top-[60%] -translate-y-1/2 z-10 p-1.5 rounded-full bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] shadow-md text-slate-600 dark:text-white hover:text-primary hover:border-primary transition-colors flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[24px]">chevron_left</span>
+                        </a>
+                        {% else %}
+                        <button disabled
+                            class="absolute left-1 md:-left-4 top-[60%] -translate-y-1/2 z-10 p-1.5 rounded-full bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] shadow-md text-slate-400 opacity-50 cursor-not-allowed flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[24px]">chevron_left</span>
+                        </button>
+                        {% endif %}
+
+                        <div class="h-64 flex flex-col justify-end gap-4 px-2 sm:px-6 relative">
                             <div class="flex-1 relative">
                                 <!-- Chart SVG Placeholder -->
-                                <svg class="w-full h-full" fill="none" preserveaspectratio="none" viewbox="0 0 400 150">
-                                    <path d="{{ fatigue_svg_path }}" fill="none"
-                                        stroke="#13ec6d" stroke-width="3"></path>
+                                <svg class="w-full h-full group" fill="none" preserveAspectRatio="none" viewBox="0 0 400 150">
+                                    <!-- Grid Lines -->
+                                    <line x1="0" y1="10" x2="400" y2="10" stroke="currentColor" class="text-slate-200 dark:text-slate-700/30" stroke-dasharray="2 2" stroke-width="1"></line>
+                                    <line x1="0" y1="75" x2="400" y2="75" stroke="currentColor" class="text-slate-200 dark:text-slate-700/30" stroke-dasharray="2 2" stroke-width="1"></line>
+                                    <line x1="0" y1="140" x2="400" y2="140" stroke="currentColor" class="text-slate-200 dark:text-slate-700/30" stroke-dasharray="2 2" stroke-width="1"></line>
+
+                                    <!-- Paths -->
                                     <path d="{{ workload_svg_path }}" fill="none"
                                         stroke="#326748" stroke-dasharray="4 4" stroke-width="2"></path>
+                                    <path d="{{ fatigue_svg_path }}" fill="none"
+                                        stroke="#13ec6d" stroke-width="3"></path>
+                                        
+                                    <!-- Tooltip Data Points -->
+                                    {% for p in workload_points %}
+                                    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.5" fill="#326748" class="cursor-crosshair hover:r-[6px] transition-all duration-200 hover:fill-amber-500 origin-center relative z-20">
+                                        <title>{{ p.date }} | Workload: {{ p.val|round(1) }} mins</title>
+                                    </circle>
+                                    {% endfor %}
+                                    
+                                    {% for p in fatigue_points %}
+                                    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="4" fill="#13ec6d" stroke="#102218" stroke-width="1" class="cursor-crosshair hover:r-[7px] transition-all duration-200 hover:fill-amber-500 origin-center relative z-20">
+                                        <title>{{ p.date }} | Fatigue: {{ p.val|round(1) }}/10</title>
+                                    </circle>
+                                    {% endfor %}
+
                                     <!-- Gradients and area fills -->
                                     <defs>
-                                        <lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+                                        <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
                                             <stop offset="0%" stop-color="#13ec6d" stop-opacity="0.2"></stop>
                                             <stop offset="100%" stop-color="#13ec6d" stop-opacity="0"></stop>
-                                        </lineargradient>
+                                        </linearGradient>
                                     </defs>
                                 </svg>
                             </div>
@@ -236,6 +271,19 @@
                                 {% endfor %}
                             </div>
                         </div>
+
+                        <!-- Right Navigation Button -->
+                        {% if chart_page > 1 %}
+                        <a href="/dashboard?chart_page={{ chart_page - 1 }}"
+                            class="absolute right-1 md:-right-4 top-[60%] -translate-y-1/2 z-10 p-1.5 rounded-full bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] shadow-md text-slate-600 dark:text-white hover:text-primary hover:border-primary transition-colors flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[24px]">chevron_right</span>
+                        </a>
+                        {% else %}
+                        <button disabled
+                            class="absolute right-1 md:-right-4 top-[60%] -translate-y-1/2 z-10 p-1.5 rounded-full bg-white dark:bg-[#234833] border border-slate-200 dark:border-[#326748] shadow-md text-slate-400 opacity-50 cursor-not-allowed flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[24px]">chevron_right</span>
+                        </button>
+                        {% endif %}
                     </div>
                     <!-- Side Card: Urgent Alerts -->
                     <a href="/analytics"
@@ -361,36 +409,46 @@
     </div>
     <script>
         document.addEventListener('click', function(e) {
-            const link = e.target.closest('a[href*=\'page=\']');
-            if (link && link.closest('#team-injury-table')) {
+            const tableLink = e.target.closest('a[href*=\'page=\']:not([href*=\'chart_page=\'])');
+            if (tableLink && tableLink.closest('#team-injury-table')) {
                 e.preventDefault();
-                loadTablePage(link.getAttribute('href'));
+                loadSection(tableLink.getAttribute('href'), 'team-injury-table');
+            }
+            
+            const chartLink = e.target.closest('a[href*=\'chart_page=\']');
+            if (chartLink && chartLink.closest('#workload-fatigue-chart')) {
+                e.preventDefault();
+                loadSection(chartLink.getAttribute('href'), 'workload-fatigue-chart');
             }
         });
-        async function loadTablePage(url) {
-            const tableContainer = document.getElementById('team-injury-table');
-            if (!tableContainer) return;
-            tableContainer.style.opacity = '0.5';
-            tableContainer.style.pointerEvents = 'none';
+        
+        async function loadSection(url, sectionId) {
+            const container = document.getElementById(sectionId);
+            if (!container) return;
+            container.style.opacity = '0.5';
+            container.style.pointerEvents = 'none';
             try {
                 const response = await fetch(url);
                 const html = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
-                const newTable = doc.getElementById('team-injury-table');
-                if (newTable) {
-                    tableContainer.innerHTML = newTable.innerHTML;
+                const newSection = doc.getElementById(sectionId);
+                if (newSection) {
+                    container.innerHTML = newSection.innerHTML;
                     window.history.pushState({ path: url }, '', url);
                 }
             } catch (err) {
                 window.location.href = url;
             } finally {
-                tableContainer.style.opacity = '1';
-                tableContainer.style.pointerEvents = 'auto';
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
             }
         }
         window.onpopstate = function(event) {
-            if (window.location.href.includes('page=')) loadTablePage(window.location.href);
+            if (window.location.href.includes('page=') || window.location.href.includes('chart_page=')) {
+                // Determine which section to reload based on URL or reload full page
+                window.location.reload(); 
+            }
         };
     </script>
 </body>

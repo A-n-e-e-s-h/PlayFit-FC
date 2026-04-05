@@ -20,16 +20,20 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'signin'
 
+from routes.report import report_bp
+app.register_blueprint(report_bp)
+
 def get_db_connection():
     conn = sqlite3.connect('playfit.db')
     conn.row_factory = sqlite3.Row
     return conn
 
 class User(UserMixin):
-    def __init__(self, id, username, role, team_code=None, team_name=None, squad=None, sport=None, login_count=0):
+    def __init__(self, id, username, role, full_name=None, team_code=None, team_name=None, squad=None, sport=None, login_count=0):
         self.id = id
         self.username = username
         self.role = role
+        self.full_name = full_name
         self.team_code = team_code
         self.team_name = team_name
         self.squad = squad
@@ -62,8 +66,9 @@ def load_user(user_id):
                         if not sport: sport = coach['sport']
             
             login_count = user['login_count']
+            full_name = user['full_name']
             
-            return User(id=user['user_id'], username=user['username'], role=role, team_code=t_code, team_name=t_name, squad=squad, sport=sport, login_count=login_count)
+            return User(id=user['user_id'], username=user['username'], role=role, full_name=full_name, team_code=t_code, team_name=t_name, squad=squad, sport=sport, login_count=login_count)
     except sqlite3.Error:
         return None
     finally:
@@ -78,9 +83,9 @@ def index():
 def signup():
     if request.method == 'POST':
         full_name = request.form.get('full_name')
-        username = request.form.get('username')
+        username = request.form.get('username', '').lower()
         password = request.form.get('password')
-        role = request.form.get('role') # 'coach' or 'player'
+        role = request.form.get('role', '').lower() # 'coach' or 'player'
         team_code = request.form.get('team_code', '').strip()
         team_name = request.form.get('team_name', '').strip() if role == 'coach' else None
         sport = request.form.get('sport', '').strip() if role == 'coach' else None
@@ -111,8 +116,8 @@ def signup():
                 return redirect(url_for('signup'))
 
             cursor = conn.cursor()
-            cursor.execute('INSERT INTO users (username, password, role, team_code, team_name, sport) VALUES (?, ?, ?, ?, ?, ?)',
-                           (username, hashed_password, role, team_code, team_name, sport))
+            cursor.execute('INSERT INTO users (username, password, role, full_name, team_code, team_name, sport) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           (username, hashed_password, role, full_name, team_code, team_name, sport))
             user_id = cursor.lastrowid
             
             # If player, also create a record in the players table
@@ -139,14 +144,16 @@ def signin():
 
         conn = get_db_connection()
         try:
-            user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-
+            user = conn.execute('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', (username,)).fetchone()
+ 
             if user and check_password_hash(user['password'], password):
                 if user['role'] != selected_role:
                     flash('Invalid username or password', 'error')
                     return redirect(url_for('signin'))
+                
+                full_name = user.get('full_name')
 
-                user_obj = User(id=user['user_id'], username=user['username'], role=user['role'], sport=user['sport'], login_count=user['login_count'])
+                user_obj = User(id=user['user_id'], username=user['username'], role=user['role'], full_name=full_name, sport=user['sport'], login_count=user['login_count'])
                 user_obj.team_code = user['team_code'] # Bind dynamically upon login
 
                 # Increment login_count in DB
@@ -191,7 +198,9 @@ def signin():
 def dashboard():
     if current_user.role == 'coach':
         page = request.args.get('page', 1, type=int)
+        chart_page = request.args.get('chart_page', 1, type=int)
         PER_PAGE = 5
+        CHART_PER_PAGE = 14
         conn = get_db_connection()
         try:
             # Fetch players with the same team code as the coach
@@ -212,6 +221,7 @@ def dashboard():
                 prediction = get_player_prediction(player['player_id'])
                 player['risk_level'] = str(prediction.get('risk_level', 'Low'))
                 player['risk_score'] = float(str(prediction.get('risk_score', 0)))
+                player['top_factors'] = prediction.get('top_factors', [])
                 
                 if player['risk_level'] == 'High':
                     stats['high_risk'] = int(stats['high_risk']) + 1
@@ -279,21 +289,19 @@ def dashboard():
             elif high_risk_count == 0:
                 risk_trend = 0
 
-            # --- Dynamic Workload vs Fatigue SVG Chart (Last 30 Days) ---
-            past_30 = today - pd.Timedelta(days=30)
-            
-            # Fetch daily team averages for fatigue (last 30 days)
+            # --- Dynamic Workload vs Fatigue SVG Chart ---
+            # Fetch daily team averages for fatigue
             fatigue_all = conn.execute('''
                 SELECT wd.entry_date, AVG(wd.fatigue_level) as avg_fatigue
                 FROM wellness_data wd
                 JOIN players p ON wd.player_id = p.player_id
                 JOIN users u ON p.user_id = u.user_id
-                WHERE u.team_code = ? AND wd.entry_date >= ?
+                WHERE u.team_code = ?
                 GROUP BY wd.entry_date
                 ORDER BY wd.entry_date ASC
-            ''', (current_user.team_code, past_30.strftime('%Y-%m-%d'))).fetchall()
+            ''', (current_user.team_code,)).fetchall()
             
-            # Fetch daily team averages for workload (last 30 days)
+            # Fetch daily team averages for workload
             workload_all = conn.execute('''
                 WITH PlayerDailyWorkload AS (
                     SELECT 
@@ -303,7 +311,7 @@ def dashboard():
                     FROM training_data td
                     JOIN players p ON td.player_id = p.player_id
                     JOIN users u ON p.user_id = u.user_id
-                    WHERE u.team_code = ? AND td.training_date >= ?
+                    WHERE u.team_code = ?
                     GROUP BY td.training_date, td.player_id
                 )
                 SELECT 
@@ -312,7 +320,7 @@ def dashboard():
                 FROM PlayerDailyWorkload
                 GROUP BY training_date
                 ORDER BY training_date ASC
-            ''', (current_user.team_code, past_30.strftime('%Y-%m-%d'))).fetchall()
+            ''', (current_user.team_code,)).fetchall()
             
             # Create dictionaries mapped by date
             fatigue_dict = {row['entry_date']: row['avg_fatigue'] for row in fatigue_all}
@@ -323,13 +331,28 @@ def dashboard():
             if not all_dates:
                  all_dates = [today.strftime('%Y-%m-%d')] # Fallback to today if no data
             
-            # Cap to the most recent 14 data points for readable chart display
-            all_dates = list(all_dates)[-14:]
+            # Pagination for chart
+            total_chart_pages = max(1, (len(all_dates) + CHART_PER_PAGE - 1) // CHART_PER_PAGE)
+            chart_page = max(1, min(chart_page, total_chart_pages))
+            
+            # Page 1 is the most recent dates
+            all_dates_desc = list(reversed(all_dates))
+            start_chart_idx = (chart_page - 1) * CHART_PER_PAGE
+            end_chart_idx = start_chart_idx + CHART_PER_PAGE
+            page_dates = all_dates_desc[start_chart_idx:end_chart_idx]
+            
+            # Re-reverse to ascending for plotting left-to-right
+            all_dates = list(reversed(page_dates))
                  
             chart_labels = []
             fatigue_points = []
             workload_points = []
             num_points = len(all_dates)
+            
+            # Dynamic scaling for workload
+            page_workloads = [workload_dict.get(d, 30.0) for d in all_dates]
+            max_w = max(page_workloads) if page_workloads else 120.0
+            scale_w = max(120.0, max_w * 1.1)
             
             for i, date_str in enumerate(all_dates):
                 try:
@@ -340,14 +363,14 @@ def dashboard():
                     
                 chart_labels.append(label_str)
                 
-                f_val = fatigue_dict.get(date_str, 5.0) # default mid fatigue
-                w_val = workload_dict.get(date_str, 30.0) # default low workload
+                f_val = float(fatigue_dict.get(date_str, 5.0))
+                w_val = float(workload_dict.get(date_str, 30.0))
                 
                 # Normalize values for a 0-150px high SVG area
-                # Fatigue scaling: (1-10) -> (150-0) [Inverted Y] -> 150 - (f_val * 15)
-                f_y = max(10, 150 - (f_val * 12))
-                # Workload scaling: (0-120 mins) -> (150-0) [Inverted Y] -> 150 - (w_val)
-                w_y = max(10, 150 - w_val)
+                # Fatigue scaling: (0-10) reversed (10 at Y=10, 0 at Y=140)
+                f_y = 140.0 - ((f_val / 10.0) * 130.0)
+                # Workload scaling: reversed (scale_w at Y=10, 0 at Y=140)
+                w_y = 140.0 - ((w_val / scale_w) * 130.0)
                 
                 # X coordinate: Dynamic spacing across 400px
                 if num_points <= 1:
@@ -355,8 +378,8 @@ def dashboard():
                 else:
                     x = i * (400.0 / (num_points - 1))
                 
-                fatigue_points.append({'x': x, 'y': f_y})
-                workload_points.append({'x': x, 'y': w_y})
+                fatigue_points.append({'x': x, 'y': f_y, 'val': f_val, 'date': label_str})
+                workload_points.append({'x': x, 'y': w_y, 'val': w_val, 'date': label_str})
             
             # Build SVG Path Strings "M x,y L x,y L x,y"
             def build_svg_path(points):
@@ -417,6 +440,10 @@ def dashboard():
             chart_labels = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
             fatigue_svg_path = "M 0 140 L 400 140"
             workload_svg_path = "M 0 130 L 400 130"
+            fatigue_points = []
+            workload_points = []
+            chart_page = 1
+            total_chart_pages = 1
             current_page = 1
             total_pages = 1
             start_count = 0
@@ -427,6 +454,8 @@ def dashboard():
                                total_players=total_players, high_risk_count=high_risk_count, avg_team_fatigue=avg_team_fatigue,
                                total_players_trend=total_players_trend, risk_trend=risk_trend, fatigue_trend=fatigue_trend,
                                chart_labels=chart_labels, fatigue_svg_path=fatigue_svg_path, workload_svg_path=workload_svg_path,
+                               fatigue_points=fatigue_points, workload_points=workload_points,
+                               chart_page=chart_page, total_chart_pages=total_chart_pages,
                                risk_alerts=risk_alerts, current_page=current_page, total_pages=total_pages,
                                start_count=start_count, end_count=end_count)
     else:
@@ -511,6 +540,7 @@ def player_management():
         flash('Unauthorized access', 'error')
         return redirect(url_for('dashboard'))
         
+    chart_page = request.args.get('chart_page', 1, type=int)
     conn = get_db_connection()
     try:
         # Get all unique squads for the team
@@ -603,9 +633,15 @@ def player_management():
                 risk_pct, risk_level, acwr, sleep_data, soreness_data, fatigue_level
             )
             
-            # --- Workload Trends Chart Data (Last 7 Days) ---
+            # --- Workload Trends Chart Data (Paginated by 7 Days) ---
             chart_data = [] 
-            display_slice = df_workload.tail(7)
+            
+            total_chart_pages = max(1, (len(df_workload) + 6) // 7)
+            chart_page = max(1, min(chart_page, total_chart_pages))
+            
+            start_row = max(0, len(df_workload) - (chart_page * 7))
+            end_row = len(df_workload) - ((chart_page - 1) * 7)
+            display_slice = df_workload.iloc[start_row:end_row]
             
             # Dynamically calculate the maximum load in the current window for visual scaling
             # Fallback to 60 if max is 0 to avoid division by zero or invisible bars
@@ -627,8 +663,12 @@ def player_management():
                 
                 chart_data.append({
                     'label': label_str,
+                    'full_date': d_obj.strftime('%b %d, %Y'),
                     'acute_height': f"{int(acute_pct)}%",
                     'chronic_height': f"{int(chronic_pct)}%",
+                    'acute_val': round(row['acute_load'], 1),
+                    'chronic_val': round(row['chronic_load'], 1),
+                    'day_acwr': round(day_acwr, 2),
                     'is_danger': is_danger
                 })
             
@@ -640,6 +680,8 @@ def player_management():
         soreness_data = 'N/A'
         acwr = 0.0
         chart_data = []
+        chart_page = 1
+        total_chart_pages = 1
         predictive_logic = {'warning': 'No data', 'interpretation': [], 'factors': [], 'actions': []}
     finally:
         conn.close()
@@ -647,6 +689,7 @@ def player_management():
     return render_template('player management.html', user=current_user, team_players=team_players, 
                            selected_player=selected_player, prediction=prediction, 
                            sleep_data=sleep_data, soreness_data=soreness_data, acwr=acwr, chart_data=chart_data,
+                           chart_page=chart_page, total_chart_pages=total_chart_pages,
                            predictive_logic=predictive_logic, available_squads=available_squads)
 
 @app.route('/assign_squad', methods=['POST'])
@@ -879,16 +922,19 @@ def analytics():
                 active_injuries += 1
                 
             # Scatter Plot Data Collection
-            wellness_row = conn.execute('''
+            wellness = conn.execute('''
                 SELECT fatigue_level FROM wellness_data 
-                WHERE player_id = ? ORDER BY entry_date DESC LIMIT 1
+                WHERE player_id = ? AND entry_date >= date('now', '-30 days')
+                ORDER BY entry_date DESC LIMIT 1
             ''', (p['player_id'],)).fetchone()
             
             try:
-                fatigue_level = int(wellness_row['fatigue_level']) if wellness_row else 5
+                fatigue_level = wellness['fatigue_level'] if wellness else None
             except (ValueError, TypeError):
-                fatigue_level = 5
-            p['fatigue_index'] = (fatigue_level / 10.0) * 100
+                fatigue_level = None
+            p['fatigue_level'] = fatigue_level
+            p['fatigue_index'] = (fatigue_level / 10.0) * 100 if fatigue_level is not None else 50
+            p['has_wellness'] = True if wellness else False
             
             injury_count = conn.execute('''
                 SELECT COUNT(*) as count FROM injury_history 
@@ -927,15 +973,20 @@ def analytics():
             y_pos = 10 + (p['injuries'] / max_injuries) * 75 if max_injuries > 0 else 10
             x_pos = min(max(p.get('fatigue_index', 50), 5), 95) # clamp to 5-95%
             
+            # Deterministic Jitter (±2.5%) based on player_id to prevent perfect overlap 
+            jitter_y = ((p['player_id'] * 13) % 10 - 5) / 2.0 
+            jitter_x = ((p['player_id'] * 17) % 10 - 5) / 2.0
+            
             scatter_data.append({
                 'name': p.get('name', p.get('username', 'Unknown')),
                 'fatigue_index': p.get('fatigue_index', 50),
+                'has_wellness': p.get('has_wellness', False),
                 'injuries': p.get('injuries', 0),
                 'color_class': color_class,
                 'status_label': status_label,
                 'size_class': size_class,
-                'bottom_pct': y_pos,
-                'left_pct': x_pos
+                'bottom_pct': y_pos + jitter_y,
+                'left_pct': x_pos + jitter_x
             })
             
             # Position Data Collection
@@ -1038,9 +1089,92 @@ def analytics():
     finally:
         conn.close()
 
+    # --- PREPARE ANALYTICS DATA ---
+    try:
+        conn = get_db_connection()
+        # Fetch report history for this coach
+        reports_query = '''
+            SELECT r.report_id, r.report_name, r.report_type, r.generated_date, r.report_date, u.full_name as coach_name, r.squad, r.period
+            FROM generated_reports r
+            JOIN users u ON r.coach_id = u.user_id
+            WHERE r.coach_id = ?
+            ORDER BY r.report_id DESC LIMIT 5
+        '''
+        generated_reports = [dict(row) for row in conn.execute(reports_query, (current_user.id,)).fetchall()]
+        conn.close()
+    except Exception as e:
+        print(f"Error fetching reports: {e}")
+        generated_reports = []
+        
     return render_template('analytics.html', user=current_user, stats=stats, scatter_data=scatter_data, 
                            position_risk=position_risk, insight_data=insight_data, 
-                           available_squads=available_squads, selected_squad=selected_squad)
+                           available_squads=available_squads, selected_squad=selected_squad,
+                           generated_reports=generated_reports)
+
+@app.route('/report_archives')
+@login_required
+def report_archives():
+    if current_user.role != 'coach':
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('dashboard'))
+        
+    try:
+        conn = get_db_connection()
+        # Fetch ALL report history for this coach
+        reports_query = '''
+            SELECT r.report_id, r.report_name, r.report_type, r.generated_date, r.report_date, u.full_name as coach_name, r.squad, r.period
+            FROM generated_reports r
+            JOIN users u ON r.coach_id = u.user_id
+            WHERE r.coach_id = ?
+            ORDER BY r.report_id DESC
+        '''
+        all_reports = [dict(row) for row in conn.execute(reports_query, (current_user.id,)).fetchall()]
+        conn.close()
+    except Exception as e:
+        print(f"Error fetching all reports: {e}")
+        all_reports = []
+        
+    return render_template('report_archives.html', user=current_user, reports=all_reports)
+
+@app.route('/clear_report_archives', methods=['POST'])
+@login_required
+def clear_report_archives():
+    if current_user.role != 'coach':
+        return redirect(url_for('dashboard'))
+        
+    try:
+        conn = get_db_connection()
+        conn.execute('DELETE FROM generated_reports WHERE coach_id = ?', (current_user.id,))
+        conn.commit()
+        conn.close()
+        flash('Report archives cleared successfully.', 'success')
+    except Exception as e:
+        print(f"Error clearing reports: {e}")
+        flash('An error occurred while clearing the archives.', 'error')
+        
+    return redirect(url_for('report_archives'))
+
+@app.route('/api/recent_reports')
+@login_required
+def api_recent_reports():
+    if current_user.role != 'coach':
+        return {"error": "Unauthorized"}, 403
+        
+    try:
+        conn = get_db_connection()
+        reports_query = '''
+            SELECT r.report_id, r.report_name, r.report_type, r.generated_date, r.report_date, u.full_name as coach_name, r.squad, r.period
+            FROM generated_reports r
+            JOIN users u ON r.coach_id = u.user_id
+            WHERE r.coach_id = ?
+            ORDER BY r.report_id DESC LIMIT 5
+        '''
+        reports = [dict(row) for row in conn.execute(reports_query, (current_user.id,)).fetchall()]
+        conn.close()
+        return {"reports": reports}, 200
+    except Exception as e:
+        print(f"API Error fetching reports: {e}")
+        return {"error": str(e)}, 500
 
 @app.route('/history')
 @login_required
@@ -1275,28 +1409,30 @@ def save_session_data():
             
             status = p.get('status', 'Full Participation')
             
-            # 1. Save Technical & Tactical if data exists
-            tr = p.get('training', {})
-            tr_mins = tr.get('minutes', '')
-            if tr_mins and tr_mins != '0':
-                # Map numeric intensity to text for CHECK constraint
-                intensity_val = tr.get('intensity', '6')
-                intensity_map = {'3': 'Low', '6': 'Medium', '9': 'High'}
-                intensity_str = intensity_map.get(str(intensity_val), 'Medium')
-                
-                cursor.execute('''
-                    INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (player_id, tr_mins, intensity_str, tr.get('frequency', 0), session_date, status, 'Technical & Tactical'))
+            # 1. Save Technical & Tactical if selected
+            if session_type == 'Technical & Tactical':
+                tr = p.get('training', {})
+                tr_mins = tr.get('minutes', '')
+                if tr_mins and tr_mins != '0':
+                    # Map numeric intensity to text for CHECK constraint
+                    intensity_val = tr.get('intensity', '6')
+                    intensity_map = {'3': 'Low', '6': 'Medium', '9': 'High'}
+                    intensity_str = intensity_map.get(str(intensity_val), 'Medium')
+                    
+                    cursor.execute('''
+                        INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (player_id, tr_mins, intensity_str, tr.get('frequency', 0), session_date, status, 'Technical & Tactical'))
 
-            # 2. Save Match Details if data exists
-            ma = p.get('match', {})
-            ma_mins = ma.get('minutes', '')
-            if ma_mins and ma_mins != '0':
-                cursor.execute('''
-                    INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type, previous_injury)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (player_id, ma_mins, None, ma.get('matches', 0), session_date, status, 'Match Details', ma.get('active_injury', 'No')))
+            # 2. Save Match Details if selected
+            elif session_type == 'Match Details':
+                ma = p.get('match', {})
+                ma_mins = ma.get('minutes', '')
+                if ma_mins and ma_mins != '0':
+                    cursor.execute('''
+                        INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type, previous_injury)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (player_id, ma_mins, None, ma.get('matches', 0), session_date, status, 'Match Details', ma.get('active_injury', 'No')))
         
         # Mark all affected players for re-prediction
         affected_player_ids = list(set([p.get('player_id') for p in players_data if p.get('player_id')]))

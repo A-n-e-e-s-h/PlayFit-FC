@@ -46,6 +46,12 @@ def get_player_prediction(player_id, period=30):
         elif risk_score > 35: risk_level = "Medium"
         else: risk_level = "Low"
         
+        # Hard overrides for cross-validation safety
+        if risk_data.get('acwr_val', 0) > 1.3 or risk_data.get('fatigue_level', 0) >= 8:
+            if risk_level == "Low":
+                risk_level = "Medium"
+                risk_score = max(risk_score, 40)
+        
         # Confidence warning based on data availability
         confidence_suffix = ""
         if not risk_data['has_workload']: confidence_suffix = " (Wellness-only)"
@@ -186,8 +192,8 @@ def _compute_risk_features(conn, player_id, target_date):
 
     # Advanced Calculations
     acute_load = training_minutes + minutes_played
-    chronic_avg = workload_df['training_minutes'].mean() if not workload_df.empty else 40.0
-    chronic_load = max(chronic_avg * 7, 1.0) # baseline of weekly load
+    total_chronic_minutes = workload_df['training_minutes'].sum() if not workload_df.empty else 160.0
+    chronic_load = max(total_chronic_minutes / 4.0, 1.0) # baseline of weekly load
     acwr_val = acute_load / chronic_load
     
     recovery_score = sleep_score - soreness_score
@@ -427,10 +433,52 @@ def _get_default_response(period, msg):
     }
 
 def get_predictive_logic(risk_score, risk_level, acwr, sleep_quality, muscle_soreness, fatigue_level):
-    """Simplified helper for dashboard info boxes."""
+    """Dynamic helper for dashboard info boxes."""
+    factors = []
+    actions = []
+    interpretation = []
+    
+    # Evaluate ACWR
+    if acwr > 1.3:
+        factors.append({'label': 'Workload Spike', 'desc': f'ACWR is high ({acwr:.2f}).', 'risk': 'Elevated injury risk.', 'icon': 'trending_up', 'color': 'red-500'})
+        actions.append("Reduce training volume by 20-30%.")
+    elif 0.3 < acwr < 0.8:
+        factors.append({'label': 'Underloading', 'desc': f'ACWR is low ({acwr:.2f}).', 'risk': 'Loss of fitness.', 'icon': 'trending_down', 'color': 'amber-500'})
+        actions.append("Gradually increase training load.")
+    elif acwr <= 0.3:
+        factors.append({'label': 'Off-Load', 'desc': f'ACWR is extremely low ({acwr:.2f}).', 'risk': 'Deconditioning.', 'icon': 'hourglass_empty', 'color': 'slate-500'})
+        actions.append("Ensure regular training sessions are actively logged.")
+    else:
+        factors.append({'label': 'Optimal Load', 'desc': f'ACWR is balanced ({acwr:.2f}).', 'risk': 'Safe zone.', 'icon': 'check_circle', 'color': 'primary'})
+        actions.append("Maintain current progression.")
+        
+    # Evaluate Sleep
+    if sleep_quality == 'Poor':
+        factors.append({'label': 'Poor Sleep', 'desc': 'Inadequate recovery.', 'risk': 'Impairs recovery.', 'icon': 'bedtime', 'color': 'red-500'})
+        actions.append("Prioritize sleep hygiene tonight.")
+        
+    # Evaluate Fatigue/Soreness
+    if fatigue_level >= 8 or muscle_soreness in ['High', 'Severe']:
+        factors.append({'label': 'High Fatigue', 'desc': 'Nervous system drained.', 'risk': 'Coordination drops.', 'icon': 'battery_alert', 'color': 'red-500'})
+        actions.append("Prioritize active recovery and massage.")
+        
+    # Interpretation based on risk level
+    if risk_level == 'High':
+        interpretation.append("Critical risk threshold crossed. Immediate intervention required.")
+    elif risk_level == 'Medium':
+        if acwr > 1.3 or fatigue_level >= 8:
+            interpretation.append("Model indicates moderate risk driven by severe workload spikes or extreme fatigue.")
+        else:
+            interpretation.append("Moderate risk detected. Monitor load carefully.")
+    else:
+        interpretation.append("Player is operating in safe parameters.")
+            
+    if not actions:
+        actions.append("Continue daily logging.")
+
     return {
-        'warning': f"Risk Analysis: {risk_level}",
-        'interpretation': ["Unified predictive analysis active."],
-        'factors': [{'label': 'ML Baseline', 'desc': 'Combined data analyzed.', 'risk': 'Standard check.', 'icon': 'check_circle', 'color': 'primary'}],
-        'actions': ["Continue daily logging."]
+        'warning': f"Risk Analysis: {risk_level} ({risk_score}%)",
+        'interpretation': interpretation,
+        'factors': factors,
+        'actions': actions
     }
