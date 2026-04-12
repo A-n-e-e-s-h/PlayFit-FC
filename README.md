@@ -1,6 +1,6 @@
 # 🏃‍♂️ PLAYFIT FC
 
-### AI-Powered Injury Risk Prediction & Athlete Performance Platform
+### AI-Powered Injury Risk Prediction & Prevention System
 
 ## 🚀 What is PLAYFIT FC?
 
