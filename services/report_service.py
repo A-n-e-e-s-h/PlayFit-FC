@@ -4,9 +4,7 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-# To access ml_service correctly
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'ml'))
-from ml_service import get_player_prediction
+from ml.ml_service import get_player_prediction
 
 def get_db_connection():
     conn = sqlite3.connect('playfit.db')

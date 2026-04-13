@@ -10,8 +10,7 @@ import os
 import subprocess
 import threading
 from datetime import date, datetime, timedelta
-sys.path.append(os.path.join(os.path.dirname(__file__), 'ml'))
-from ml_service import get_player_prediction, get_predictive_logic
+from ml.ml_service import get_player_prediction, get_predictive_logic, _get_default_response
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_here' # Change this in production
