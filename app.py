@@ -151,7 +151,7 @@ def signin():
                     flash('Invalid username or password', 'error')
                     return redirect(url_for('signin'))
                 
-                full_name = user.get('full_name')
+                full_name = user['full_name']
 
                 user_obj = User(id=user['user_id'], username=user['username'], role=user['role'], full_name=full_name, sport=user['sport'], login_count=user['login_count'])
                 user_obj.team_code = user['team_code'] # Bind dynamically upon login
@@ -481,7 +481,7 @@ def dashboard():
                 entry = conn.execute('SELECT 1 FROM wellness_data WHERE player_id = ? AND entry_date = ?', (p_id, today)).fetchone()
                 has_logged_today = bool(entry)
                 
-                notifications_db = conn.execute('SELECT id, message, created_at FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
+                notifications_db = conn.execute('SELECT id, message, created_at, is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
                 notifications = [dict(row) for row in notifications_db]
         except sqlite3.Error:
             pass
@@ -766,6 +766,25 @@ def notify_player():
         conn.close()
 
     return redirect(url_for('player_management', player_id=player_id))
+
+@app.route('/mark_notifications_seen', methods=['POST'])
+@login_required
+def mark_notifications_seen():
+    if current_user.role != 'player':
+        return '', 403
+        
+    conn = get_db_connection()
+    try:
+        player = conn.execute('SELECT player_id FROM players WHERE user_id = ?', (current_user.id,)).fetchone()
+        if player:
+            conn.execute('UPDATE notifications SET is_seen = 1 WHERE player_id = ? AND is_read = 0', (player['player_id'],))
+            conn.commit()
+    except sqlite3.Error:
+        pass
+    finally:
+        conn.close()
+        
+    return '', 200
 
 @app.route('/dismiss_notification/<int:notif_id>', methods=['POST'])
 @login_required

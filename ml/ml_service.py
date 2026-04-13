@@ -351,18 +351,16 @@ def _check_and_trigger_alerts(conn, player_id, risk_score, risk_data):
         return
 
     # De-duplication: check if any notification for this player + type exists in last 24h
-    cutoff = (datetime.now() - timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
-    
     for alert in active_alerts:
         existing = conn.execute('''
             SELECT id FROM notifications 
-            WHERE player_id = ? AND message LIKE ? AND created_at > ?
+            WHERE player_id = ? AND message LIKE ? AND created_at > datetime('now', '-1 day')
             LIMIT 1
-        ''', (player_id, f'%{alert["type"]}%', cutoff)).fetchone()
+        ''', (player_id, f'%{alert["type"]}%')).fetchone()
         
         if not existing:
             # Insert new notification
-            full_msg = f"[{alert['prio']} Alert] {alert['msg']}"
+            full_msg = f"[{alert['prio']} Alert - {alert['type']}] {alert['msg']}"
             conn.execute('''
                 INSERT INTO notifications (player_id, message, is_read, created_at)
                 VALUES (?, ?, 0, datetime('now'))

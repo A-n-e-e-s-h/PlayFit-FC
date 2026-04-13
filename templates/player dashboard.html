@@ -99,36 +99,68 @@
         <main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark">
             <div class="max-w-6xl mx-auto p-8 space-y-8">
                 <!-- PageHeading -->
-                <header class="flex flex-wrap justify-between items-end gap-4">
+                <header class="flex flex-wrap justify-between items-end gap-4 relative z-40">
                     <div class="flex flex-col gap-1 w-full">
                         <div class="flex justify-between items-center w-full">
                             <h2 class="text-slate-900 dark:text-white text-4xl font-black tracking-tight">
                                 {% if current_user.login_count <= 1 %}Welcome,{% else %}Welcome back,{% endif %} 
                                 {{ user.username.split('@')[0] | capitalize }}
                             </h2>
+                            <!-- Notification Bell -->
+                            <div class="relative">
+                                <button onclick="document.getElementById('notification-dropdown').classList.toggle('hidden'); const badge = document.getElementById('notification-badge'); if(badge) { badge.classList.add('hidden'); fetch('/mark_notifications_seen', {method: 'POST'}); }" class="relative p-2 text-slate-500 hover:text-slate-900 dark:text-white/60 dark:hover:text-white transition-colors bg-white dark:bg-[#162d20] border border-slate-200 dark:border-white/5 rounded-xl shadow-sm">
+                                    <span class="material-symbols-outlined">notifications</span>
+                                    {% set has_unseen = namespace(value=false) %}
+                                    {% for notif in notifications %}
+                                        {% if not notif.is_seen %}
+                                            {% set has_unseen.value = true %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if has_unseen.value %}
+                                    <span id="notification-badge" class="absolute top-1 right-1 flex h-3 w-3">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500 border-2 border-white dark:border-[#162d20]"></span>
+                                    </span>
+                                    {% endif %}
+                                </button>
+                                
+                                <!-- Dropdown Menu -->
+                                <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#162d20] border border-slate-200 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden z-50">
+                                    <div class="p-4 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                                        <h3 class="font-bold text-slate-900 dark:text-white">Alerts</h3>
+                                        <span class="text-xs font-medium text-slate-500 dark:text-white/40">{{ notifications|length }} Unread</span>
+                                    </div>
+                                    <div class="max-h-96 overflow-y-auto p-2">
+                                        {% if notifications %}
+                                            <div class="flex flex-col gap-2">
+                                                {% for notif in notifications %}
+                                                <div class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-xl flex items-start justify-between shadow-sm">
+                                                    <div class="flex items-center gap-3">
+                                                        <span class="material-symbols-outlined shrink-0 text-amber-500">campaign</span>
+                                                        <span class="font-medium text-sm leading-tight">{{ notif.message }}</span>
+                                                    </div>
+                                                    <form action="{{ url_for('dismiss_notification', notif_id=notif.id) }}" method="POST" class="shrink-0 ml-2">
+                                                        <button type="submit" class="text-amber-500 hover:text-amber-600 transition-colors tooltip" title="Mark as read">
+                                                            <span class="material-symbols-outlined font-bold" style="font-size: 18px;">close</span>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <div class="p-6 text-center text-slate-500 dark:text-white/40">
+                                                <span class="material-symbols-outlined text-4xl mb-2 opacity-50">notifications_paused</span>
+                                                <p class="text-sm">You have no new alerts.</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <p class="text-slate-500 dark:text-primary/70 text-base font-medium">Your injury risk is
                             currently <span class="text-primary">{{ prediction.risk_level }}</span></p>
                     </div>
                 </header>
-                
-                {% if notifications %}
-                <div class="flex flex-col gap-3">
-                    {% for notif in notifications %}
-                    <div class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-4 rounded-xl flex items-start justify-between shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined">campaign</span>
-                            <span class="font-medium text-sm">{{ notif.message }}</span>
-                        </div>
-                        <form action="{{ url_for('dismiss_notification', notif_id=notif.id) }}" method="POST">
-                            <button type="submit" class="text-amber-500 hover:text-amber-600 transition-colors tooltip" title="Mark as read">
-                                <span class="material-symbols-outlined font-bold" style="font-size: 20px;">close</span>
-                            </button>
-                        </form>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
                 <div class="grid grid-cols-12 gap-6">
                     <!-- Left Column: Risk & Chart -->
                     <div class="col-span-12 lg:col-span-8 space-y-6">
@@ -156,9 +188,6 @@
                                 </div>
                                 <div class="mt-4">
                                     <p class="text-slate-900 dark:text-white font-bold">Injury Risk Level</p>
-                                    <p class="text-slate-500 dark:text-primary/70 text-[10px] uppercase font-black mt-1">
-                                        Calculated from 25+ physiological metrics
-                                    </p>
                                 </div>
                                 <!-- SHAP Factors Integration -->
                                 {% if prediction.top_factors %}
@@ -348,6 +377,17 @@
             // Apply dynamic styles from data attributes
             document.querySelectorAll('.dynamic-width').forEach(el => {
                 if (el.dataset.width) el.style.width = el.dataset.width;
+            });
+
+            // Close notification dropdown when clicking outside
+            document.addEventListener('click', (event) => {
+                const dropdown = document.getElementById('notification-dropdown');
+                const button = dropdown ? dropdown.previousElementSibling : null;
+                if (dropdown && !dropdown.classList.contains('hidden') && button) {
+                    if (!dropdown.contains(event.target) && !button.contains(event.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                }
             });
         });
     </script>
