@@ -82,6 +82,7 @@ CREATE TABLE notifications (
     player_id INTEGER NOT NULL,
     message TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_seen BOOLEAN DEFAULT 0,
     is_read BOOLEAN DEFAULT 0,
     FOREIGN KEY (player_id) REFERENCES players (player_id) ON DELETE CASCADE
 );

@@ -20,6 +20,7 @@ from ml.ml_service import get_player_prediction, get_player_risk_snapshot, get_p
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_here' # Change this in production
+_RUNTIME_SCHEMA_READY = False
 
 # ─── SMTP Configuration (loaded from .env) ────────────────────────────────────
 try:
@@ -43,8 +44,18 @@ from routes.report import report_bp
 app.register_blueprint(report_bp)
 
 def get_db_connection():
+    global _RUNTIME_SCHEMA_READY
     conn = sqlite3.connect('playfit.db')
     conn.row_factory = sqlite3.Row
+    if not _RUNTIME_SCHEMA_READY:
+        try:
+            notif_columns = {row['name'] for row in conn.execute("PRAGMA table_info(notifications)").fetchall()}
+            if notif_columns and 'is_seen' not in notif_columns:
+                conn.execute("ALTER TABLE notifications ADD COLUMN is_seen BOOLEAN DEFAULT 0")
+                conn.commit()
+            _RUNTIME_SCHEMA_READY = True
+        except sqlite3.Error:
+            pass
     return conn
 
 class User(UserMixin):
@@ -614,7 +625,7 @@ def dashboard():
                 entry = conn.execute('SELECT 1 FROM wellness_data WHERE player_id = ? AND entry_date = ?', (p_id, today)).fetchone()
                 has_logged_today = bool(entry)
                 
-                notifications_db = conn.execute('SELECT notif_id as id, message, created_at, is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
+                notifications_db = conn.execute('SELECT notif_id as id, message, created_at, COALESCE(is_seen, 0) as is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
                 notifications = [dict(row) for row in notifications_db]
         except sqlite3.Error:
             pass
@@ -933,7 +944,7 @@ def dismiss_notification(notif_id):
         player_check = conn.execute('SELECT p.player_id FROM players p JOIN notifications n ON p.player_id = n.player_id WHERE n.notif_id = ? AND p.user_id = ?', (notif_id, current_user.id)).fetchone()
         
         if player_check:
-            conn.execute('UPDATE notifications SET is_read = 1 WHERE notif_id = ?', (notif_id,))
+            conn.execute('UPDATE notifications SET is_read = 1, is_seen = 1 WHERE notif_id = ?', (notif_id,))
             conn.commit()
     except sqlite3.Error:
         pass
