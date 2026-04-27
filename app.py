@@ -9,15 +9,35 @@ import sys
 import os
 import subprocess
 import threading
+import random
+import json
+import secrets
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import date, datetime, timedelta
-from ml.ml_service import get_player_prediction, get_predictive_logic, _get_default_response
+from ml.ml_service import get_player_prediction, get_player_risk_snapshot, get_predictive_logic, _get_default_response, queue_prediction, check_and_trigger_learning
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_here' # Change this in production
 
+# ─── SMTP Configuration (loaded from .env) ────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed; fall back to environment variables
+
+SMTP_SERVER   = 'smtp.gmail.com'
+SMTP_PORT     = 587
+SMTP_USERNAME = os.environ.get('SMTP_USERNAME', 'your_email@gmail.com')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'your_app_password_here')
+SMTP_FROM     = f'PlayFit FC <{SMTP_USERNAME}>'
+# ──────────────────────────────────────────────────────────────────────────────
+
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'signin'
+login_manager.login_view = 'index'
 
 from routes.report import report_bp
 app.register_blueprint(report_bp)
@@ -51,6 +71,11 @@ def load_user(user_id):
             sport = user['sport']
             squad = None
             
+            if role == 'admin':
+                return User(id=user['user_id'], username=user['username'], role=role,
+                            full_name=user['full_name'], team_name='Administration',
+                            login_count=user['login_count'])
+            
             if role == 'player':
                 # Get squad from players table
                 player_row = conn.execute('SELECT squad FROM players WHERE user_id = ?', (user_id,)).fetchone()
@@ -74,9 +99,32 @@ def load_user(user_id):
         conn.close()
     return None
 
+
+@app.after_request
+def add_no_cache_headers(response):
+    """Prevent browser from caching any page so back/forward always hits the server."""
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 @app.route('/')
 def index():
     return render_template('homepage.html')
+
+@app.route('/logout')
+def logout():
+    """Log out the current user and redirect to homepage."""
+    logout_user()
+    session.clear()
+    return redirect(url_for('index'))
+
+@app.route('/signout')
+def signout():
+    """Alias for /logout used by existing sidebar links."""
+    logout_user()
+    session.clear()
+    return redirect(url_for('index'))
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -115,7 +163,8 @@ def signup():
                 return redirect(url_for('signup'))
 
             cursor = conn.cursor()
-            cursor.execute('INSERT INTO users (username, password, role, full_name, team_code, team_name, sport) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            # New accounts start as unapproved (is_approved=0) — admin must approve them
+            cursor.execute('INSERT INTO users (username, password, role, full_name, team_code, team_name, sport, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
                            (username, hashed_password, role, full_name, team_code, team_name, sport))
             user_id = cursor.lastrowid
             
@@ -125,7 +174,7 @@ def signup():
                                (user_id, full_name, age, position, experience_years))
             
             conn.commit()
-            flash('Account created successfully! Please log in.', 'success')
+            flash('Account created! Your account is pending admin approval. You will be able to sign in once approved.', 'success')
             return redirect(url_for('signin'))
         except sqlite3.Error as e:
             flash('An error occurred during registration.', 'error')
@@ -134,20 +183,22 @@ def signup():
 
     return render_template('signup.html')
 
+
 @app.route('/signin', methods=['GET', 'POST'])
 def signin():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        selected_role = request.form.get('user_role', '').lower()
 
         conn = get_db_connection()
         try:
             user = conn.execute('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', (username,)).fetchone()
- 
+
             if user and check_password_hash(user['password'], password):
-                if user['role'] != selected_role:
-                    flash('Invalid username or password', 'error')
+                
+                # Check if user is approved (coaches and players need approval)
+                if user['role'] in ('coach', 'player') and not user['is_approved']:
+                    flash('Your account is pending admin approval. Please wait.', 'error')
                     return redirect(url_for('signin'))
                 
                 full_name = user['full_name']
@@ -163,7 +214,9 @@ def signin():
                 
                 # Map Team Name & Squad & Sport Inheritance
                 squad = None
-                if user['role'] == 'coach':
+                if user['role'] == 'admin':
+                    user_obj.team_name = 'Administration'
+                elif user['role'] == 'coach':
                     user_obj.team_name = user['team_name'] if user['team_name'] else "Coach Mode"
                 else:
                     # Get squad from players table
@@ -184,9 +237,12 @@ def signin():
                 
                 user_obj.squad = squad
                 login_user(user_obj)
+                
+                if user['role'] == 'admin':
+                    return redirect(url_for('admin_dashboard'))
                 return redirect(url_for('dashboard'))
             else:
-                flash('Invalid username or password', 'error')
+                flash('Invalid email or password', 'error')
         finally:
             conn.close()
 
@@ -214,22 +270,75 @@ def dashboard():
             # Using a dict to bypass persistent linter type-inference issues with local variables
             stats = {'fatigue': 0, 'wellness': 0, 'high_risk': 0}
             
-            # --- Current Metrics ---
-            for row in team_players_db:
-                player = cast(Dict[str, Any], dict(row))
-                prediction = get_player_prediction(player['player_id'])
-                player['risk_level'] = str(prediction.get('risk_level', 'Low'))
-                player['risk_score'] = float(str(prediction.get('risk_score', 0)))
-                player['top_factors'] = prediction.get('top_factors', [])
-                
-                if player['risk_level'] == 'High':
-                    stats['high_risk'] = int(stats['high_risk']) + 1
+            # --- Lazy Cleanup ---
+            if random.random() < 0.01:
+                try:
+                    last_cleanup = conn.execute("SELECT meta_value FROM system_meta WHERE meta_key = 'last_cleanup_at'").fetchone()
+                    should_run = True
+                    if last_cleanup:
+                        last_dt = datetime.fromisoformat(last_cleanup['meta_value'])
+                        if datetime.now() - last_dt < timedelta(hours=24):
+                            should_run = False
                     
-                wellness_row = conn.execute('SELECT fatigue_level, entry_date FROM wellness_data WHERE player_id = ? ORDER BY entry_date DESC LIMIT 1', (player['player_id'],)).fetchone()
+                    if should_run:
+                        conn.execute("DELETE FROM predictions WHERE prediction_date < DATE('now', '-90 days')")
+                        conn.execute("UPDATE system_meta SET meta_value = ?, last_updated = CURRENT_TIMESTAMP WHERE meta_key = 'last_cleanup_at'", (datetime.now().isoformat(),))
+                        conn.commit()
+                        print("Lazy Cleanup executed.")
+                except Exception as cleanup_e:
+                    print(f"Cleanup failed: {cleanup_e}")
+
+            # --- Batch Prediction Fetching ---
+            player_ids = [p['player_id'] for p in team_players_db]
+            placeholders = ', '.join(['?'] * len(player_ids))
+            
+            # Fetch latest prediction for all players
+            latest_preds_db = conn.execute(f'''
+                SELECT p1.* 
+                FROM predictions p1
+                JOIN (
+                    SELECT player_id, MAX(prediction_date) as max_date 
+                    FROM predictions 
+                    WHERE player_id IN ({placeholders}) 
+                    GROUP BY player_id
+                ) p2 ON p1.player_id = p2.player_id AND p1.prediction_date = p2.max_date
+            ''', player_ids).fetchall()
+            
+            preds_map = {p['player_id']: dict(p) for p in latest_preds_db}
+            
+            team_players = []
+            stats = {'fatigue': 0, 'wellness': 0, 'high_risk': 0}
+            
+            for row in team_players_db:
+                player = dict(row)
+                p_id = player['player_id']
+                
+                # Check if update needed and queue
+                if player['prediction_ready'] == 1:
+                    queue_prediction(p_id)
+                
+                prediction = preds_map.get(p_id)
+                if prediction:
+                    player['risk_level'] = prediction['risk_level']
+                    player['risk_score'] = prediction['risk_score']
+                    player['top_factors'] = json.loads(prediction['top_factors']) if prediction['top_factors'] else []
+                    
+                    # Confidence check for stale data (2 days)
+                    last_pred_date = pd.to_datetime(prediction['prediction_date'])
+                    if (datetime.now() - last_pred_date).days > 2:
+                        player['risk_level'] += " (Stale)"
+                else:
+                    player['risk_level'] = 'Calculating...'
+                    player['risk_score'] = 0
+                    player['top_factors'] = []
+                
+                if player['risk_level'].startswith('High'):
+                    stats['high_risk'] += 1
+                    
+                wellness_row = conn.execute('SELECT fatigue_level, entry_date FROM wellness_data WHERE player_id = ? ORDER BY entry_date DESC LIMIT 1', (p_id,)).fetchone()
                 if wellness_row:
-                    fatigue_val = int(wellness_row['fatigue_level']) if wellness_row['fatigue_level'] else 0
-                    stats['fatigue'] = int(stats['fatigue']) + fatigue_val
-                    stats['wellness'] = int(stats['wellness']) + 1
+                    stats['fatigue'] += wellness_row['fatigue_level'] or 0
+                    stats['wellness'] += 1
                     player['last_session'] = wellness_row['entry_date']
                 else:
                     player['last_session'] = 'N/A'
@@ -245,10 +354,9 @@ def dashboard():
                 calc_avg = (float(total_fatigue) / float(players_with_wellness)) * 10
                 avg_team_fatigue = int(round(calc_avg))
             else:
-                avg_team_fatigue = 0
+                avg_team_fatigue = None
 
             # --- 30-Day Historical Trend Calculation ---
-            import pandas as pd
             today = pd.to_datetime('today').normalize()
             today_str = today.strftime('%Y-%m-%d')
             past_30 = today - pd.Timedelta(days=30)
@@ -327,8 +435,7 @@ def dashboard():
             
             # Combine unique dates and sort chronologically
             all_dates = sorted(list(set(fatigue_dict.keys()).union(set(workload_dict.keys()))))
-            if not all_dates:
-                 all_dates = [today.strftime('%Y-%m-%d')] # Fallback to today if no data
+            # Removed fake fallback to today if no data exists to avoid displaying misleading empty graphs
             
             # Pagination for chart
             total_chart_pages = max(1, (len(all_dates) + CHART_PER_PAGE - 1) // CHART_PER_PAGE)
@@ -348,17 +455,45 @@ def dashboard():
             workload_points = []
             num_points = len(all_dates)
             
-            # Dynamic scaling for workload
+            # Dynamic scaling for workload and fatigue
             page_workloads = [workload_dict.get(d, 30.0) for d in all_dates]
-            max_w = max(page_workloads) if page_workloads else 120.0
-            scale_w = max(120.0, max_w * 1.1)
+            page_fatigues = [fatigue_dict.get(d, 5.0) for d in all_dates]
+            
+            min_w = min(page_workloads) if page_workloads else 0.0
+            max_w = max(page_workloads) if page_workloads else 100.0
+            if max_w == min_w:
+                max_w += 10.0
+                min_w = max(0.0, min_w - 10.0)
+                
+            w_pad = (max_w - min_w) * 0.15
+            scale_min_w = max(0.0, min_w - w_pad)
+            scale_max_w = max_w + w_pad
+            w_range = scale_max_w - scale_min_w
+            
+            min_f = min(page_fatigues) if page_fatigues else 0.0
+            max_f = max(page_fatigues) if page_fatigues else 10.0
+            if max_f == min_f:
+                max_f = min(10.0, max_f + 1.0)
+                min_f = max(0.0, min_f - 1.0)
+                
+            f_pad = (max_f - min_f) * 0.15
+            scale_min_f = max(0.0, min_f - f_pad)
+            scale_max_f = min(10.0, max_f + f_pad)
+            f_range = scale_max_f - scale_min_f
+            
+            # Use a true linear time scale for the X-axis
+            min_date_ts = pd.to_datetime(all_dates[0]).timestamp() if all_dates else 0
+            max_date_ts = pd.to_datetime(all_dates[-1]).timestamp() if all_dates else 1
+            date_range_ts = max_date_ts - min_date_ts if max_date_ts > min_date_ts else 1
             
             for i, date_str in enumerate(all_dates):
                 try:
                     d = pd.to_datetime(date_str)
-                    label_str = d.strftime('%b %d')  # e.g. Mar 25
+                    label_str = d.strftime('%b %d')
+                    curr_ts = d.timestamp()
                 except Exception:
                     label_str = date_str
+                    curr_ts = min_date_ts
                     
                 chart_labels.append(label_str)
                 
@@ -366,16 +501,11 @@ def dashboard():
                 w_val = float(workload_dict.get(date_str, 30.0))
                 
                 # Normalize values for a 0-150px high SVG area
-                # Fatigue scaling: (0-10) reversed (10 at Y=10, 0 at Y=140)
-                f_y = 140.0 - ((f_val / 10.0) * 130.0)
-                # Workload scaling: reversed (scale_w at Y=10, 0 at Y=140)
-                w_y = 140.0 - ((w_val / scale_w) * 130.0)
+                f_y = 140.0 - (((f_val - scale_min_f) / f_range) * 130.0)
+                w_y = 140.0 - (((w_val - scale_min_w) / w_range) * 130.0)
                 
-                # X coordinate: Dynamic spacing across 400px
-                if num_points <= 1:
-                    x = 200.0 # Center point if only 1 day of data
-                else:
-                    x = i * (400.0 / (num_points - 1))
+                # X coordinate: Linear time scale across 400px
+                x = ((curr_ts - min_date_ts) / date_range_ts) * 400.0
                 
                 fatigue_points.append({'x': x, 'y': f_y, 'val': f_val, 'date': label_str})
                 workload_points.append({'x': x, 'y': w_y, 'val': w_val, 'date': label_str})
@@ -392,14 +522,13 @@ def dashboard():
             workload_svg_path = build_svg_path(workload_points)
 
             # --- Risk Alerts for Sidebar ---
-            # Only show players who are genuinely at risk (High risk level or score > 50)
             risk_alerts = []
             for player in team_players:
                 risk_level = str(player.get('risk_level', 'Low'))
                 risk_val = float(str(player.get('risk_score', 0)))
                 
-                # Only flag players that are actually at risk
-                if risk_level == 'High' or risk_val > 50:
+                # Show players who are at risk (Medium/High risk level or score > 35)
+                if risk_level in ['High', 'Medium'] or risk_val > 35:
                     if risk_val > 75:
                         alert_type = 'CRITICAL FATIGUE'
                     else:
@@ -412,8 +541,13 @@ def dashboard():
                         'type': alert_type,
                         'player_name': str(player.get('name', 'Unknown')),
                         'message': f"{player.get('name', 'Unknown')} has elevated injury risk ({risk_val:.0f}%)",
-                        'time': alert_time
+                        'time': alert_time,
+                        'score': risk_val # for sorting
                     })
+            
+            # Sort by score descending and limit to top 5 for a cleaner dashboard
+            risk_alerts.sort(key=lambda x: x['score'], reverse=True)
+            risk_alerts = risk_alerts[:5]
             
             # --- Final Pagination ---
             total_pages = max(1, (total_players + PER_PAGE - 1) // PER_PAGE)
@@ -480,7 +614,7 @@ def dashboard():
                 entry = conn.execute('SELECT 1 FROM wellness_data WHERE player_id = ? AND entry_date = ?', (p_id, today)).fetchone()
                 has_logged_today = bool(entry)
                 
-                notifications_db = conn.execute('SELECT id, message, created_at, is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
+                notifications_db = conn.execute('SELECT notif_id as id, message, created_at, is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
                 notifications = [dict(row) for row in notifications_db]
         except sqlite3.Error:
             pass
@@ -520,9 +654,12 @@ def submit_wellness():
         if player:
             conn.execute('INSERT INTO wellness_data (player_id, fatigue_level, sleep_quality, muscle_soreness, entry_date) VALUES (?, ?, ?, ?, ?)',
                          (player['player_id'], fatigue_level, sleep_quality, muscle_soreness, date.today().isoformat()))
-            # Mark player for re-prediction
+            # Mark player for re-prediction and queue in background
             conn.execute('UPDATE players SET prediction_ready = 1 WHERE player_id = ?', (player['player_id'],))
             conn.commit()
+            queue_prediction(player['player_id'])
+            # Autonomous learning trigger
+            check_and_trigger_learning(conn)
             flash('Wellness data saved successfully!', 'success')
     except sqlite3.Error as e:
         flash('An error occurred while saving data.', 'error')
@@ -585,12 +722,10 @@ def player_management():
                 soreness_data = wellness['muscle_soreness']
                 fatigue_level = wellness['fatigue_level']
             else:
-                sleep_data = 'Average'
-                soreness_data = 'Low'
-                fatigue_level = 5
+                sleep_data = 'N/A'
+                soreness_data = 'N/A'
+                fatigue_level = 0
                 
-            # --- Sports Science ACWR Calculation (Real Data) ---
-            import pandas as pd
             today = pd.to_datetime('today').normalize()
             past_35 = today - pd.Timedelta(days=35)
             
@@ -795,10 +930,10 @@ def dismiss_notification(notif_id):
     conn = get_db_connection()
     try:
         # Extra validation: ensuring the notification actually belongs to the active player
-        player_check = conn.execute('SELECT p.player_id FROM players p JOIN notifications n ON p.player_id = n.player_id WHERE n.id = ? AND p.user_id = ?', (notif_id, current_user.id)).fetchone()
+        player_check = conn.execute('SELECT p.player_id FROM players p JOIN notifications n ON p.player_id = n.player_id WHERE n.notif_id = ? AND p.user_id = ?', (notif_id, current_user.id)).fetchone()
         
         if player_check:
-            conn.execute('UPDATE notifications SET is_read = 1 WHERE id = ?', (notif_id,))
+            conn.execute('UPDATE notifications SET is_read = 1 WHERE notif_id = ?', (notif_id,))
             conn.commit()
     except sqlite3.Error:
         pass
@@ -843,9 +978,11 @@ def data_entry():
             # --- Smart Status Identification Logic ---
             # 1. Check for Active Injuries
             active_injury = conn.execute('''
-                SELECT 1 FROM injury_history 
+                SELECT 1 FROM training_data 
                 WHERE player_id = ? 
-                AND date(injury_date, '+' || recovery_days || ' days') >= date(?)
+                AND active_injury = 1
+                AND date(training_date, '+14 days') >= date(?)
+                ORDER BY training_date DESC LIMIT 1
             ''', (p['player_id'], today_str)).fetchone()
             
             if active_injury:
@@ -885,9 +1022,84 @@ def analytics():
         return redirect(url_for('dashboard'))
     
     selected_squad = request.args.get('squad', 'all')
+    selected_date = request.args.get('date', date.today().isoformat())
+    try:
+        selected_date_obj = pd.to_datetime(selected_date).normalize()
+        selected_date = selected_date_obj.strftime('%Y-%m-%d')
+    except Exception:
+        selected_date_obj = pd.to_datetime(date.today().isoformat()).normalize()
+        selected_date = selected_date_obj.strftime('%Y-%m-%d')
     
     conn = get_db_connection()
     try:
+        prediction_cache = {}
+
+        def resolve_snapshot_prediction(player_id, target_date_str):
+            cache_key = (player_id, target_date_str)
+            if cache_key not in prediction_cache:
+                prediction_cache[cache_key] = get_player_risk_snapshot(player_id, target_date=target_date_str)
+            return prediction_cache[cache_key]
+
+        def normalize_risk_level(level_text, risk_score):
+            if level_text in ('High', 'Medium', 'Low'):
+                return level_text
+            level_text = str(level_text or '')
+            if level_text.startswith('High'):
+                return 'High'
+            if level_text.startswith('Medium'):
+                return 'Medium'
+            if level_text.startswith('Low'):
+                return 'Low'
+            if risk_score > 65:
+                return 'High'
+            if risk_score > 35:
+                return 'Medium'
+            return 'Low'
+
+        # --- Helper for dynamic recovery timeline ---
+        def get_team_avg_recovery(conn, team_code, squad_name='all'):
+            try:
+                # Look at players in the team
+                player_query = '''
+                    SELECT p.player_id FROM players p
+                    JOIN users u ON p.user_id = u.user_id
+                    WHERE u.team_code = ?
+                '''
+                params = [team_code]
+                if squad_name != 'all':
+                    player_query += ' AND p.squad = ?'
+                    params.append(squad_name)
+
+                players = conn.execute(player_query, params).fetchall()
+                
+                player_ids = [p['player_id'] for p in players]
+                if not player_ids: return 14.0
+                
+                stints = []
+                for pid in player_ids:
+                    # Get recent history
+                    rows = conn.execute('''
+                        SELECT training_date, active_injury FROM training_data 
+                        WHERE player_id = ? AND training_date <= ?
+                        ORDER BY training_date ASC
+                    ''', (pid, selected_date)).fetchall()
+                    
+                    in_injury = False
+                    start_date = None
+                    for row in rows:
+                        if row['active_injury'] == 1 and not in_injury:
+                            in_injury = True
+                            start_date = datetime.strptime(row['training_date'], '%Y-%m-%d')
+                        elif row['active_injury'] == 0 and in_injury:
+                            in_injury = False
+                            end_date = datetime.strptime(row['training_date'], '%Y-%m-%d')
+                            stints.append((end_date - start_date).days)
+                
+                if not stints: return 14.0
+                # Filter out outliers or unrealistically short/long ones if needed
+                return round(sum(stints) / len(stints), 1)
+            except:
+                return 14.0
         # Get all unique squads for the team
         squad_rows = conn.execute('''
             SELECT DISTINCT p.squad 
@@ -914,57 +1126,68 @@ def analytics():
         rows = conn.execute(query, params).fetchall()
         
         team_players = [dict(r) for r in rows]
-        
-        # 2. Calculate current metrics
+
         total_risk = 0
         high_risk_count = 0
         active_injuries = 0
         
         for p in team_players:
-            pred = get_player_prediction(p['player_id'])
-            p['risk_score'] = pred.get('risk_score', 0)
+            p_id = p['player_id']
+            pred = resolve_snapshot_prediction(p_id, selected_date)
+            p['risk_score'] = float(pred.get('risk_score', 0) or 0)
             p['risk_level'] = pred.get('risk_level', 'Low')
+            p['risk_level_base'] = pred.get('risk_level_base') or normalize_risk_level(p['risk_level'], p['risk_score'])
             
             total_risk += p['risk_score']
-            if p['risk_level'] == 'High':
+            if p['risk_level_base'] == 'High':
                 high_risk_count += 1
                 
             # Check latest participation status
             latest_status = conn.execute('''
-                SELECT participation_status FROM training_data 
-                WHERE player_id = ? 
+                SELECT active_injury FROM training_data 
+                WHERE player_id = ? AND training_date <= ?
                 ORDER BY training_date DESC, training_id DESC LIMIT 1
-            ''', (p['player_id'],)).fetchone()
+            ''', (p_id, selected_date)).fetchone()
             
-            if latest_status and latest_status['participation_status'] == 'No Participation':
+            if latest_status and latest_status['active_injury'] == 1:
                 active_injuries += 1
                 
             # Scatter Plot Data Collection
             wellness = conn.execute('''
                 SELECT fatigue_level FROM wellness_data 
-                WHERE player_id = ? AND entry_date >= date('now', '-30 days')
+                WHERE player_id = ? AND entry_date <= ?
                 ORDER BY entry_date DESC LIMIT 1
-            ''', (p['player_id'],)).fetchone()
+            ''', (p_id, selected_date)).fetchone()
             
             try:
                 fatigue_level = wellness['fatigue_level'] if wellness else None
             except (ValueError, TypeError):
                 fatigue_level = None
             p['fatigue_level'] = fatigue_level
-            p['fatigue_index'] = (fatigue_level / 10.0) * 100 if fatigue_level is not None else 50
+            p['fatigue_index'] = (fatigue_level / 10.0) * 100 if fatigue_level is not None else None
             p['has_wellness'] = True if wellness else False
             
-            injury_count = conn.execute('''
-                SELECT COUNT(*) as count FROM injury_history 
-                WHERE player_id = ?
-            ''', (p['player_id'],)).fetchone()
-            p['injuries'] = injury_count['count'] if injury_count else 0
+            injury_dates_query = conn.execute('''
+                SELECT DISTINCT training_date FROM training_data 
+                WHERE player_id = ? AND active_injury = 1 AND training_date <= ?
+                ORDER BY training_date ASC
+            ''', (p_id, selected_date)).fetchall()
+            
+            calculated_injuries = 0
+            if injury_dates_query:
+                dates = [datetime.strptime(row['training_date'], '%Y-%m-%d').date() for row in injury_dates_query]
+                calculated_injuries = 1
+                for i in range(1, len(dates)):
+                    if (dates[i] - dates[i-1]).days > 7:
+                        calculated_injuries += 1
+                        
+            p['injuries'] = calculated_injuries
         
         avg_risk = round(total_risk / len(team_players), 1) if team_players else 0
         
         # Build Scatter Data & Position Risk
         scatter_data = []
-        max_injuries = max([p.get('injuries', 0) for p in team_players]) if team_players else 0
+        max_injuries = max([p.get('injuries', 0) for p in team_players]) if team_players else 1 # Avoid div by zero
         
         position_data = {
             'Forward': {'total_risk': 0, 'count': 0},
@@ -974,7 +1197,7 @@ def analytics():
         }
         
         for p in team_players:
-            risk_level = p.get('risk_level', 'Low')
+            risk_level = p.get('risk_level_base', 'Low')
             if risk_level == 'High':
                 color_class = 'bg-red-500 ring-red-500/20'
                 status_label = 'CRITICAL'
@@ -988,8 +1211,13 @@ def analytics():
                 status_label = 'Optimal'
                 size_class = 'size-3'
 
-            y_pos = 10 + (p['injuries'] / max_injuries) * 75 if max_injuries > 0 else 10
-            x_pos = min(max(p.get('fatigue_index', 50), 5), 95) # clamp to 5-95%
+            y_pos = 10 + (p.get('injuries', 0) / max_injuries) * 75
+            
+            # SAFE Fatigue handling to prevent crash
+            f_idx = p.get('fatigue_index')
+            if f_idx is None:
+                f_idx = 50 # Default middle
+            x_pos = min(max(f_idx, 5), 95) # clamp to 5-95%
             
             # Deterministic Jitter (±2.5%) based on player_id to prevent perfect overlap 
             jitter_y = ((p['player_id'] * 13) % 10 - 5) / 2.0 
@@ -997,7 +1225,7 @@ def analytics():
             
             scatter_data.append({
                 'name': p.get('name', p.get('username', 'Unknown')),
-                'fatigue_index': p.get('fatigue_index', 50),
+                'fatigue_index': f_idx,
                 'has_wellness': p.get('has_wellness', False),
                 'injuries': p.get('injuries', 0),
                 'color_class': color_class,
@@ -1068,26 +1296,38 @@ def analytics():
             'color': insight_color
         }
         
-        # 3. Recovery Timeline (Avg from injury history)
-        recovery_query = '''
-            SELECT AVG(ih.recovery_days) as avg_rec
-            FROM injury_history ih
-            JOIN players p ON ih.player_id = p.player_id
-            JOIN users u ON p.user_id = u.user_id
-            WHERE u.team_code = ?
-        '''
-        rec_params = [current_user.team_code]
-        if selected_squad != 'all':
-            recovery_query += ' AND p.squad = ?'
-            rec_params.append(selected_squad)
+        # 3. Dynamic Recovery Timeline
+        avg_recovery = get_team_avg_recovery(conn, current_user.team_code, selected_squad)
+        
+        # Trends (Dynamic based on selected date)
+        try:
+            print(f"Calculating analytics for: {selected_date}")
+            past_date = (selected_date_obj - timedelta(days=7)).strftime('%Y-%m-%d')
+            past_total_risk = 0
+
+            for p in team_players:
+                past_pred = resolve_snapshot_prediction(p['player_id'], past_date)
+                past_total_risk += float(past_pred.get('risk_score', 0) or 0)
             
-        recovery_data = conn.execute(recovery_query, rec_params).fetchone()
-        
-        avg_recovery = round(recovery_data['avg_rec'], 1) if recovery_data and recovery_data['avg_rec'] else 0
-        
-        # Trends (simplified logic for now)
-        risk_trend = 3 # Placeholder trend
-        injury_trend = 1 # Placeholder trend
+            past_avg_risk = round(past_total_risk / len(team_players), 1) if team_players else 0
+            risk_trend = round(avg_risk - past_avg_risk, 1)
+            
+            # Dynamic Injury Trend
+            past_active_injuries = 0
+            for p in team_players:
+                p_past_status = conn.execute('''
+                    SELECT active_injury FROM training_data 
+                    WHERE player_id = ? AND training_date <= ?
+                    ORDER BY training_date DESC, training_id DESC LIMIT 1
+                ''', (p['player_id'], past_date)).fetchone()
+                if p_past_status and p_past_status['active_injury'] == 1:
+                    past_active_injuries += 1
+            
+            injury_trend = active_injuries - past_active_injuries
+        except Exception as e:
+            print(f"Trend error: {e}")
+            risk_trend = 0
+            injury_trend = 0
         
         stats = {
             'avg_risk': avg_risk,
@@ -1127,7 +1367,7 @@ def analytics():
     return render_template('analytics.html', user=current_user, stats=stats, scatter_data=scatter_data, 
                            position_risk=position_risk, insight_data=insight_data, 
                            available_squads=available_squads, selected_squad=selected_squad,
-                           generated_reports=generated_reports)
+                           selected_date=selected_date, generated_reports=generated_reports)
 
 @app.route('/report_archives')
 @login_required
@@ -1292,86 +1532,7 @@ def coach_player_history(player_id):
 
     return render_template('history.html', user=mock_player_user, prediction=prediction, wellness_logs=wellness_logs, is_coach_view=True, player_id=player_id)
 
-@app.route('/session_history')
-@login_required
-def session_history():
-    if current_user.role != 'coach':
-        flash('Unauthorized access', 'error')
-        return redirect(url_for('dashboard'))
-    
-    conn = get_db_connection()
-    try:
-        # Fetch all training data for players in the coach's team
-        history_data = conn.execute('''
-            SELECT td.*, p.name as player_name, u.username
-            FROM training_data td
-            JOIN players p ON td.player_id = p.player_id
-            JOIN users u ON p.user_id = u.user_id
-            WHERE u.team_code = ?
-            ORDER BY td.training_date DESC, td.training_id DESC
-        ''', (current_user.team_code,)).fetchall()
-        
-        # Group entries by player and date to merge Technical and Match data
-        history = []
-        seen = {}  # key: (player_id, training_date)
-        
-        for row in history_data:
-            key = (row['player_id'], row['training_date'])
-            if key not in seen:
-                # Create a base entry
-                item = dict(row)
-                # Initialize fields to ensure they exist for the template logic
-                item['technical_mins'] = row['training_minutes'] if 'Match' not in row['session_type'] else None
-                item['technical_freq'] = row['sessions_per_week'] if 'Match' not in row['session_type'] else None
-                item['technical_intensity'] = row['intensity'] if 'Match' not in row['session_type'] else None
-                item['match_mins'] = row['training_minutes'] if 'Match' in row['session_type'] else None
-                item['match_freq'] = row['sessions_per_week'] if 'Match' in row['session_type'] else None
-                item['active_injury'] = row['previous_injury'] if 'Match' in row['session_type'] else None
-                
-                seen[key] = len(history)
-                history.append(item)
-            else:
-                # Update existing entry with missing data (only if not already set, to prioritize newest sessions)
-                idx = seen[key]
-                item = history[idx]
-                if 'Match' not in row['session_type']:
-                    if item.get('technical_mins') is None:
-                        item['technical_mins'] = row['training_minutes']
-                        item['technical_freq'] = row['sessions_per_week']
-                        item['technical_intensity'] = row['intensity']
-                else:
-                    if item.get('match_mins') is None:
-                        item['match_mins'] = row['training_minutes']
-                        item['match_freq'] = row['sessions_per_week']
-                        item['active_injury'] = row['previous_injury']
-        
-    except sqlite3.Error as e:
-        history = []
-        flash(f'Error fetching history: {str(e)}', 'error')
-    finally:
-        conn.close()
-        
-    return render_template('session_history.html', user=current_user, history=history)
 
-@app.route('/clear_history', methods=['POST'])
-@login_required
-def clear_history():
-    if current_user.role != 'coach':
-        return {"error": "Unauthorized access"}, 403
-    
-    conn = get_db_connection()
-    try:
-        # We clear the entire table as requested for now
-        # In a multi-tenant app, we'd filter by player_id belonging to the coach's team
-        conn.execute('DELETE FROM training_data')
-        conn.commit()
-        flash('Session history cleared successfully.', 'success')
-        return redirect(url_for('session_history'))
-    except sqlite3.Error as e:
-        flash(f'Error clearing history: {str(e)}', 'error')
-        return redirect(url_for('session_history'))
-    finally:
-        conn.close()
 
 @app.route('/guide')
 @login_required
@@ -1393,12 +1554,75 @@ def guide():
         
     return render_template('guide.html', user=current_user, prediction=prediction)
 
-@app.route('/signout')
+@app.route('/session_history')
 @login_required
-def signout():
-    logout_user()
-    session.clear()
-    return redirect(url_for('index'))
+def session_history():
+    if current_user.role != 'coach':
+        flash('Unauthorized access', 'error')
+        return redirect(url_for('dashboard'))
+    
+    conn = get_db_connection()
+    try:
+        # Fetch all training data for players in the coach's team
+        history_data = conn.execute('''
+            SELECT td.*, p.name as player_name, u.username
+            FROM training_data td
+            JOIN players p ON td.player_id = p.player_id
+            JOIN users u ON p.user_id = u.user_id
+            WHERE u.team_code = ?
+            ORDER BY td.training_date DESC, td.training_id DESC
+        ''', (current_user.team_code,)).fetchall()
+        
+        history = []
+        for row in history_data:
+            item = dict(row)
+            # Map metrics - ensure None handles cleanly for the template's "or '-'" logic
+            item['technical_mins'] = row['training_minutes'] if row['training_minutes'] and row['training_minutes'] > 0 else None
+            item['technical_freq'] = row['sessions_per_week'] if row['sessions_per_week'] and row['sessions_per_week'] > 0 else None
+            # Show intensity if technical data exists
+            item['technical_intensity'] = row['intensity'] if (row['training_minutes'] and row['training_minutes'] > 0) or (row['sessions_per_week'] and row['sessions_per_week'] > 0) else None
+            
+            item['match_mins'] = row['minutes_played'] if row['minutes_played'] and row['minutes_played'] > 0 else None
+            item['match_freq'] = row['matches_per_week'] if row['matches_per_week'] and row['matches_per_week'] > 0 else None
+            item['active_injury'] = 'Yes' if row['active_injury'] else 'No'
+            
+            # Infer participation status
+            if row['active_injury']:
+                item['participation_status'] = 'No Participation'
+            elif (item['technical_mins'] and item['technical_mins'] < 45) or (item['match_mins'] and item['match_mins'] < 45):
+                item['participation_status'] = 'Modified Training'
+            else:
+                item['participation_status'] = 'Full Participation'
+                
+            history.append(item)
+            
+    except sqlite3.Error as e:
+        history = []
+        flash(f'Error fetching history: {str(e)}', 'error')
+    finally:
+        conn.close()
+        
+    return render_template('session_history.html', user=current_user, history=history)
+
+@app.route('/clear_history', methods=['POST'])
+@login_required
+def clear_history():
+    if current_user.role != 'coach':
+        return {"error": "Unauthorized access"}, 403
+    
+    conn = get_db_connection()
+    try:
+        # Clear the entire table as requested for now
+        conn.execute('DELETE FROM training_data')
+        conn.commit()
+        flash('Session history cleared successfully.', 'success')
+        return redirect(url_for('session_history'))
+    except sqlite3.Error as e:
+        flash(f'Error clearing history: {str(e)}', 'error')
+        return redirect(url_for('session_history'))
+    finally:
+        conn.close()
+
 
 @app.route('/save_session_data', methods=['POST'])
 @login_required
@@ -1417,6 +1641,7 @@ def save_session_data():
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
+        cursor.execute("BEGIN")
         for p in players_data:
             player_id = p.get('player_id')
             if not player_id:
@@ -1425,41 +1650,113 @@ def save_session_data():
                     continue
                 player_id = player['player_id']
             
-            status = p.get('status', 'Full Participation')
+            existing = cursor.execute('''
+                SELECT training_id, training_minutes, minutes_played FROM training_data 
+                WHERE player_id = ? AND training_date = ?
+            ''', (player_id, session_date)).fetchone()
             
-            # 1. Save Technical & Tactical if selected
-            if session_type == 'Technical & Tactical':
-                tr = p.get('training', {})
-                tr_mins = tr.get('minutes', '')
-                if tr_mins and tr_mins != '0':
-                    # Map numeric intensity to text for CHECK constraint
-                    intensity_val = tr.get('intensity', '6')
-                    intensity_map = {'3': 'Low', '6': 'Medium', '9': 'High'}
-                    intensity_str = intensity_map.get(str(intensity_val), 'Medium')
+            update_fields = []
+            params = []
+            is_new_session_type = False
+            
+            # Process ALL data if present, regardless of session_type dropdown
+            # This allows users to fill both Technical and Match details if they switch modes
+            
+            # 1. Technical Data
+            tr = p.get('training', {})
+            tr_mins = tr.get('minutes')
+            if tr_mins is not None and tr_mins != '':
+                update_fields.append("training_minutes = ?")
+                params.append(int(tr_mins))
+                if existing and existing['training_minutes'] == 0:
+                    is_new_session_type = True
+            
+            intensity_val = tr.get('intensity')
+            if intensity_val is not None and intensity_val != '':
+                intensity_map = {'3': 'Low', '6': 'Medium', '9': 'High'}
+                intensity_str = intensity_map.get(str(intensity_val), 'Medium')
+                update_fields.append("intensity = ?")
+                params.append(intensity_str)
+                
+            tr_freq = tr.get('frequency')
+            if tr_freq is not None and tr_freq != '':
+                update_fields.append("sessions_per_week = ?")
+                params.append(int(tr_freq))
+            
+            # 2. Match Data
+            ma = p.get('match', {})
+            ma_mins = ma.get('minutes')
+            if ma_mins is not None and ma_mins != '':
+                update_fields.append("minutes_played = ?")
+                params.append(int(ma_mins))
+                if existing and existing['minutes_played'] == 0:
+                    is_new_session_type = True
                     
-                    cursor.execute('''
-                        INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (player_id, tr_mins, intensity_str, tr.get('frequency', 0), session_date, status, 'Technical & Tactical'))
-
-            # 2. Save Match Details if selected
-            elif session_type == 'Match Details':
-                ma = p.get('match', {})
-                ma_mins = ma.get('minutes', '')
-                if ma_mins and ma_mins != '0':
-                    cursor.execute('''
-                        INSERT INTO training_data (player_id, training_minutes, intensity, sessions_per_week, training_date, participation_status, session_type, previous_injury)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (player_id, ma_mins, None, ma.get('matches', 0), session_date, status, 'Match Details', ma.get('active_injury', 'No')))
-        
-        # Mark all affected players for re-prediction
+            ma_freq = ma.get('matches')
+            if ma_freq is not None and ma_freq != '':
+                update_fields.append("matches_per_week = ?")
+                params.append(int(ma_freq))
+                
+            # 3. Status and Active Injury
+            status = p.get('status')
+            active_injury_raw = ma.get('active_injury')
+            
+            if status == 'No Participation':
+                update_fields.append("active_injury = ?")
+                params.append(1)
+            elif session_type == 'Match Details' and active_injury_raw is not None and active_injury_raw != '':
+                active_injury = 1 if str(active_injury_raw).lower() in ['yes', 'true', '1'] else 0
+                update_fields.append("active_injury = ?")
+                params.append(active_injury)
+            elif status in ['Full Participation', 'Modified Training']:
+                update_fields.append("active_injury = ?")
+                params.append(0)
+            
+            if not update_fields:
+                continue
+                
+            update_fields.append("last_updated_at = CURRENT_TIMESTAMP")
+            
+            if existing:
+                if is_new_session_type:
+                    update_fields.append("session_count = session_count + 1")
+                
+                query = f"UPDATE training_data SET {', '.join(update_fields)} WHERE training_id = ?"
+                params.append(existing['training_id'])
+                cursor.execute(query, params)
+            else:
+                insert_dict = {
+                    "player_id": player_id,
+                    "training_date": session_date,
+                    "session_count": 1,
+                    "training_minutes": 0,
+                    "intensity": "Medium",
+                    "sessions_per_week": 0,
+                    "minutes_played": 0,
+                    "matches_per_week": 0,
+                    "active_injury": 0
+                }
+                for i, field_str in enumerate(update_fields):
+                    if " = ?" in field_str:
+                        col_name = field_str.split(" =")[0]
+                        insert_dict[col_name] = params[i]
+                
+                cols = ", ".join(insert_dict.keys())
+                placeholders = ", ".join(["?"] * len(insert_dict))
+                query = f"INSERT INTO training_data ({cols}, last_updated_at) VALUES ({placeholders}, CURRENT_TIMESTAMP)"
+                cursor.execute(query, list(insert_dict.values()))
+                
         affected_player_ids = list(set([p.get('player_id') for p in players_data if p.get('player_id')]))
         if affected_player_ids:
             cursor.executemany('UPDATE players SET prediction_ready = 1 WHERE player_id = ?', [(pid,) for pid in affected_player_ids])
+            # Queue background updates for all affected players
+            for pid in affected_player_ids:
+                queue_prediction(pid)
         
         conn.commit()
         return {"success": True}
     except Exception as e:
+        conn.rollback()
         return {"error": str(e)}, 500
     finally:
         conn.close()
@@ -1517,6 +1814,478 @@ def import_training_data():
         return {"players": results}
     except Exception as e:
         return {"error": str(e)}, 500
+
+# ─────────────────────────────────────────────
+# ADMIN ROUTES
+# ─────────────────────────────────────────────
+
+def admin_required(f):
+    """Decorator: ensures only admin users can access the route."""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('Admin access required.', 'error')
+            return redirect(url_for('signin'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    conn = get_db_connection()
+    try:
+        # Summary stats
+        total_coaches = conn.execute("SELECT COUNT(*) FROM users WHERE role='coach'").fetchone()[0]
+        total_players = conn.execute("SELECT COUNT(*) FROM users WHERE role='player'").fetchone()[0]
+        pending_coaches = conn.execute("SELECT COUNT(*) FROM users WHERE role='coach' AND is_approved=0").fetchone()[0]
+        pending_players = conn.execute("SELECT COUNT(*) FROM users WHERE role='player' AND is_approved=0").fetchone()[0]
+        
+        # Pending users (awaiting approval)
+        pending_users = conn.execute("""
+            SELECT user_id, username, role, full_name, team_code, team_name, sport, login_count
+            FROM users 
+            WHERE role IN ('coach', 'player') AND is_approved = 0
+            ORDER BY user_id DESC
+        """).fetchall()
+        pending_users = [dict(u) for u in pending_users]
+        
+        # All coaches
+        coaches = conn.execute("""
+            SELECT u.user_id, u.username, u.full_name, u.team_code, u.team_name, u.sport, u.login_count, u.is_approved,
+                   COUNT(p.player_id) as player_count
+            FROM users u
+            LEFT JOIN users pu ON pu.team_code = u.team_code AND pu.role = 'player'
+            LEFT JOIN players p ON p.user_id = pu.user_id
+            WHERE u.role = 'coach'
+            GROUP BY u.user_id
+            ORDER BY u.user_id DESC
+        """).fetchall()
+        coaches = [dict(c) for c in coaches]
+        
+        # All players with their coach info
+        players = conn.execute("""
+            SELECT u.user_id, u.username, u.team_code, u.login_count, u.is_approved,
+                   pl.position, pl.age, pl.squad,
+                   COALESCE(pl.name, u.full_name) as full_name,
+                   coach.full_name as coach_name, coach.team_name
+            FROM users u
+            LEFT JOIN players pl ON pl.user_id = u.user_id
+            LEFT JOIN users coach ON coach.team_code = u.team_code AND coach.role = 'coach'
+            WHERE u.role = 'player'
+            ORDER BY u.user_id DESC
+        """).fetchall()
+        players = [dict(p) for p in players]
+        
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'error')
+        total_coaches = total_players = pending_coaches = pending_players = 0
+        pending_users = coaches = players = []
+    finally:
+        conn.close()
+    
+    return render_template('admin_dashboard.html',
+        user=current_user,
+        total_coaches=total_coaches,
+        total_players=total_players,
+        pending_coaches=pending_coaches,
+        pending_players=pending_players,
+        pending_users=pending_users,
+        coaches=coaches,
+        players=players
+    )
+
+
+@app.route('/admin/approve/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_approve_user(user_id):
+    conn = get_db_connection()
+    try:
+        user = conn.execute('SELECT username, role FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        if user:
+            conn.execute('UPDATE users SET is_approved = 1, approved_by = ? WHERE user_id = ?',
+                         (current_user.id, user_id))
+            conn.commit()
+            flash(f"User '{user['username']}' ({user['role']}) has been approved.", 'success')
+        else:
+            flash('User not found.', 'error')
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/reject/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_reject_user(user_id):
+    """Reject & delete a pending user."""
+    conn = get_db_connection()
+    try:
+        user = conn.execute('SELECT username, role FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        if user:
+            conn.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+            conn.commit()
+            flash(f"User '{user['username']}' ({user['role']}) has been rejected and removed.", 'success')
+        else:
+            flash('User not found.', 'error')
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/delete/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(user_id):
+    """Permanently delete an approved coach or player."""
+    conn = get_db_connection()
+    try:
+        user = conn.execute('SELECT username, role FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        if user:
+            if user['role'] == 'admin':
+                flash('Cannot delete admin accounts.', 'error')
+            else:
+                conn.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+                conn.commit()
+                flash(f"User '{user['username']}' ({user['role']}) has been permanently deleted.", 'success')
+        else:
+            flash('User not found.', 'error')
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/toggle_approval/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_toggle_approval(user_id):
+    """Suspend (unapprove) or re-approve an existing user."""
+    conn = get_db_connection()
+    try:
+        user = conn.execute('SELECT username, role, is_approved FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        if user:
+            new_status = 0 if user['is_approved'] else 1
+            action = 'suspended' if new_status == 0 else 're-approved'
+            conn.execute('UPDATE users SET is_approved = ? WHERE user_id = ?', (new_status, user_id))
+            conn.commit()
+            flash(f"User '{user['username']}' has been {action}.", 'success')
+        else:
+            flash('User not found.', 'error')
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/edit/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_user(user_id):
+    """GET: return user data as JSON for the edit modal. POST: save updated fields."""
+    conn = get_db_connection()
+    try:
+        user = conn.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+        if not user:
+            if request.method == 'GET':
+                return {'error': 'User not found.'}, 404
+            flash('User not found.', 'error')
+            return redirect(url_for('admin_dashboard'))
+
+        if request.method == 'GET':
+            # Return editable user data as JSON for the modal
+            player_row = None
+            if user['role'] == 'player':
+                player_row = conn.execute(
+                    'SELECT age, position, experience_years FROM players WHERE user_id = ?', (user_id,)
+                ).fetchone()
+
+            data = {
+                'user_id':          user['user_id'],
+                'username':         user['username'],
+                'full_name':        user['full_name'] or '',
+                'role':             user['role'],
+                'team_name':        user['team_name'] or '',
+                'team_code':        user['team_code'] or '',
+                'sport':            user['sport'] or '',
+                'age':              player_row['age'] if player_row else '',
+                'position':         player_row['position'] if player_row else '',
+                'experience_years': player_row['experience_years'] if player_row else '',
+            }
+            return data
+
+        # ── POST: save changes ──────────────────────────────────────────────
+        full_name  = request.form.get('full_name', '').strip()
+        username   = request.form.get('username', '').strip().lower()
+        team_name  = request.form.get('team_name', '').strip()
+        team_code  = request.form.get('team_code', '').strip()
+        sport      = request.form.get('sport', '').strip()
+
+        if not username or not full_name:
+            flash('Full name and username are required.', 'error')
+            return redirect(url_for('admin_dashboard'))
+
+        # Check username uniqueness (excluding current user)
+        existing = conn.execute(
+            'SELECT user_id FROM users WHERE LOWER(username) = ? AND user_id != ?', (username, user_id)
+        ).fetchone()
+        if existing:
+            flash(f"Username '{username}' is already taken by another user.", 'error')
+            return redirect(url_for('admin_dashboard'))
+
+        conn.execute('''
+            UPDATE users
+            SET full_name = ?, username = ?, team_name = ?, team_code = ?, sport = ?
+            WHERE user_id = ?
+        ''', (full_name, username, team_name, team_code, sport, user_id))
+
+        # If player, also update the players table
+        if user['role'] == 'player':
+            age              = request.form.get('age', '').strip()
+            position         = request.form.get('position', '').strip()
+            experience_years = request.form.get('experience_years', '').strip()
+
+            conn.execute('''
+                UPDATE players
+                SET name = ?, age = ?, position = ?, experience_years = ?
+                WHERE user_id = ?
+            ''', (full_name, age or None, position or None, experience_years or None, user_id))
+
+        conn.commit()
+        flash(f"User '{username}' updated successfully.", 'success')
+
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'error')
+    finally:
+        conn.close()
+
+    return redirect(url_for('admin_dashboard'))
+
+
+# ─── OTP Password Reset ───────────────────────────────────────────────────────
+
+def _send_otp_email(to_address: str, otp: str, full_name: str) -> bool:
+    """Send a 6-digit OTP to the user's email via SMTP. Returns True on success."""
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'PlayFit FC — Your Password Reset OTP'
+        msg['From']    = SMTP_FROM
+        msg['To']      = to_address
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Password Reset OTP</title>
+        </head>
+        <body style="margin:0;padding:0;background:#102218;font-family:'Segoe UI',Arial,sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#102218;padding:40px 0;">
+            <tr><td align="center">
+              <table width="560" cellpadding="0" cellspacing="0" style="background:#193324;border-radius:12px;overflow:hidden;border:1px solid #2a5a3a;">
+                <!-- Header -->
+                <tr>
+                  <td style="background:#13ec6d;padding:24px 32px;text-align:center;">
+                    <p style="margin:0;color:#102218;font-size:24px;font-weight:900;letter-spacing:2px;">PLAYFIT FC</p>
+                  </td>
+                </tr>
+                <!-- Body -->
+                <tr>
+                  <td style="padding:40px 32px;">
+                    <p style="color:#92c9a9;font-size:14px;margin:0 0 8px;">Hello, <strong style="color:#fff;">{full_name}</strong></p>
+                    <h2 style="color:#fff;font-size:22px;margin:0 0 16px;">Your Password Reset OTP</h2>
+                    <p style="color:#92c9a9;font-size:15px;line-height:1.6;margin:0 0 28px;">
+                      We received a request to reset your PlayFit FC account password.
+                      Use the OTP below to verify your identity. It expires in <strong style="color:#13ec6d;">10 minutes</strong>.
+                    </p>
+                    <div style="text-align:center;margin-bottom:32px;">
+                      <div style="display:inline-block;background:#102218;border:2px solid #13ec6d;border-radius:12px;padding:20px 48px;">
+                        <p style="margin:0;color:#13ec6d;font-size:42px;font-weight:900;letter-spacing:12px;font-family:monospace;">{otp}</p>
+                      </div>
+                    </div>
+                    <p style="color:#92c9a9;font-size:13px;margin:0 0 4px;">Enter this code on the verification page. Do not share it with anyone.</p>
+                    <hr style="border:none;border-top:1px solid #2a5a3a;margin:24px 0;">
+                    <p style="color:#6aaa80;font-size:12px;margin:0;">
+                      If you did not request a password reset, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                  <td style="background:#112218;padding:16px 32px;text-align:center;">
+                    <p style="color:#6aaa80;font-size:11px;margin:0;">&copy; 2026 PlayFit FC. All rights reserved.</p>
+                  </td>
+                </tr>
+              </table>
+            </td></tr>
+          </table>
+        </body>
+        </html>
+        """
+
+        text_body = (
+            f"Hello {full_name},\n\n"
+            f"Your PlayFit FC password reset OTP is: {otp}\n"
+            f"This code expires in 10 minutes.\n\n"
+            f"If you did not request this, please ignore this email.\n\n"
+            f"— PlayFit FC Team"
+        )
+
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(SMTP_USERNAME, to_address, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"[SMTP Error] Failed to send OTP email: {e}")
+        return False
+
+
+# ─── Forgot Password — OTP Flow ────────────────────────────────────────────────
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Step 1: User enters their registered email; we generate and send a 6-digit OTP."""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        if not email:
+            flash('Please enter your email address.', 'error')
+            return redirect(url_for('forgot_password'))
+
+        conn = get_db_connection()
+        try:
+            user = conn.execute(
+                'SELECT user_id, full_name, username FROM users WHERE LOWER(username) = ?',
+                (email,)
+            ).fetchone()
+
+            if user:
+                otp = str(random.randint(100000, 999999))
+                expiry = (datetime.now() + timedelta(minutes=10)).isoformat()
+
+                # Store OTP state in session (server-side, not exposed in URL)
+                session['otp_code']    = otp
+                session['otp_expiry']  = expiry
+                session['otp_email']   = email
+                session['otp_user_id'] = user['user_id']
+                session['otp_attempts'] = 0
+
+                full_name = user['full_name'] or user['username']
+                _send_otp_email(email, otp, full_name)
+
+            # Always redirect to verify page (prevents email enumeration)
+            flash('If that email is registered, a 6-digit OTP has been sent. Check your inbox.', 'success')
+            return redirect(url_for('verify_otp'))
+        except sqlite3.Error as e:
+            print(f"[DB Error] forgot_password: {e}")
+            flash('A server error occurred. Please try again later.', 'error')
+        finally:
+            conn.close()
+
+    return render_template('forgot_password.html')
+
+
+@app.route('/verify_otp', methods=['GET', 'POST'])
+def verify_otp():
+    """Step 2: User enters the OTP received by email."""
+    if 'otp_code' not in session:
+        flash('Please start the password reset process from the beginning.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        entered = request.form.get('otp', '').strip()
+
+        # Increment attempt counter
+        session['otp_attempts'] = session.get('otp_attempts', 0) + 1
+
+        # Too many attempts
+        if session['otp_attempts'] > 3:
+            session.pop('otp_code', None)
+            flash('Too many incorrect attempts. Please request a new OTP.', 'error')
+            return redirect(url_for('forgot_password'))
+
+        # Check expiry
+        try:
+            expiry = datetime.fromisoformat(session['otp_expiry'])
+        except (KeyError, ValueError):
+            expiry = datetime.min
+
+        if datetime.now() > expiry:
+            session.pop('otp_code', None)
+            flash('Your OTP has expired. Please request a new one.', 'error')
+            return redirect(url_for('forgot_password'))
+
+        # Verify OTP
+        if entered == session.get('otp_code'):
+            session['otp_verified'] = True
+            session.pop('otp_code', None)  # Consume the OTP immediately
+            return redirect(url_for('reset_password'))
+        else:
+            remaining = 3 - session['otp_attempts']
+            flash(f'Incorrect OTP. {remaining} attempt(s) remaining.', 'error')
+
+    return render_template('verify_otp.html')
+
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    """Step 3: Verified user sets a new password."""
+    if not session.get('otp_verified') or 'otp_user_id' not in session:
+        flash('Please complete the OTP verification first.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    conn = get_db_connection()
+    try:
+        if request.method == 'POST':
+            password = request.form.get('password', '')
+            confirm  = request.form.get('confirm_password', '')
+
+            if len(password) < 8:
+                flash('Password must be at least 8 characters.', 'error')
+                return render_template('reset_password.html')
+
+            if password != confirm:
+                flash('Passwords do not match.', 'error')
+                return render_template('reset_password.html')
+
+            user_id = session['otp_user_id']
+            hashed  = generate_password_hash(password)
+            conn.execute(
+                'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE user_id = ?',
+                (hashed, user_id)
+            )
+            conn.commit()
+
+            # Clear all OTP session keys
+            for key in ('otp_verified', 'otp_user_id', 'otp_email', 'otp_expiry', 'otp_attempts'):
+                session.pop(key, None)
+
+            flash('Your password has been updated! You can now sign in.', 'success')
+            return redirect(url_for('signin'))
+
+        return render_template('reset_password.html')
+
+    except sqlite3.Error as e:
+        print(f"[DB Error] reset_password: {e}")
+        flash('A server error occurred. Please try again.', 'error')
+        return redirect(url_for('forgot_password'))
+    finally:
+        conn.close()
+
 
 if __name__ == '__main__':
     app.run(debug=True)

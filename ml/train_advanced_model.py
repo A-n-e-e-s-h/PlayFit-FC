@@ -59,7 +59,7 @@ def load_and_preprocess(filepath):
     y = df['injury_risk']
     
     # Shuffle dataset
-    X, y = X.sample(frac=1, random_state=42).reset_index(drop=True), y.sample(frac=1, random_state=42).reset_index(drop=True)
+    # X, y = X.sample(frac=1, random_state=42).reset_index(drop=True), y.sample(frac=1, random_state=42).reset_index(drop=True)
     
     return X, y, feature_cols
 

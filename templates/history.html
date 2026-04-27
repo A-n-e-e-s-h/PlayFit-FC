@@ -45,7 +45,68 @@
         .chart-gradient {
             background: linear-gradient(180deg, rgba(19, 236, 109, 0.2) 0%, rgba(19, 236, 109, 0) 100%);
         }
+
+        /* Tooltip Styles */
+        #risk-tooltip {
+            position: absolute;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #risk-tooltip.locked {
+            pointer-events: auto;
+        }
+
+        .tooltip-card {
+            background: rgba(16, 34, 24, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(19, 236, 109, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 12px;
+            min-width: 160px;
+        }
+
+        /* SVG Animations */
+        .path-animate {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawLine 2s ease-out forwards;
+        }
+
+        @keyframes drawLine {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .point-animate {
+            opacity: 0;
+            transform: scale(0.5);
+            animation: fadeInPoint 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes fadeInPoint {
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.2; transform: scale(1.5); }
+        }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
@@ -96,7 +157,7 @@
                             src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1HU6K-3_lBaNNAMmf32dp_ohPvuzkkc7Pp5dAcz8VFREaaauLEkWrDnPnf4GcmSPsgRBKLGjgbOrbeBzLlxkIsU18fnN1yrHjXfD0qXQl1zyW8dKQKZSrkEGNeIHV2fWVVkmUuHXqyf92JtZrv1GYswDk6glOgU4PEYlx2ADFqdTKJFvq4ZGe8hNwNw0AwcwrsE44INA3kx95T1flu6XDk8-0n-lQsya6KlTm3IDFlOcZ3xblle50r6S3mSodTsQbOxWnAL5DMII" />
                     </div>
                     <div class="flex-1 overflow-hidden">
-                        <p class="text-xs font-bold truncate">{{ user.username.split('@')[0] | capitalize }}</p>
+                        <p class="text-xs font-bold truncate">{{ user.full_name or user.username.split('@')[0] | capitalize }}</p>
                         <p class="text-[10px] text-slate-500 truncate">Elite Tier Player</p>
                     </div>
                 </div>
@@ -174,57 +235,76 @@
                             <p class="text-xs text-slate-500 dark:text-primary/40">Daily volatility for current selected
                                 period</p>
                         </div>
-                        <div class="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
+                        <div class="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                             <div class="flex items-center gap-1.5">
-                                <span class="size-2 rounded-full bg-primary"></span> Low Risk
+                                <div class="size-2 bg-primary rounded-full"></div>
+                                <span>Logged Data</span>
                             </div>
                             <div class="flex items-center gap-1.5">
-                                <span class="size-2 rounded-full bg-amber-500"></span> Moderate
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="size-2 rounded-full bg-red-500"></span> High Risk
+                                <div class="size-2 border border-primary border-dashed rounded-full"></div>
+                                <span>Estimated Trend</span>
                             </div>
                         </div>
                     </div>
-                    <div class="relative w-full flex flex-col gap-4">
-                        <!-- Custom SVG Chart Simulation -->
-                        <svg class="w-full h-56 overflow-visible" preserveaspectratio="none" viewbox="0 0 400 100">
-                            <!-- Background Grid -->
-                            <line class="stroke-slate-100 dark:stroke-primary/5" stroke-width="0.5" x1="0" x2="400"
-                                y1="25" y2="25"></line>
-                            <line class="stroke-slate-100 dark:stroke-primary/5" stroke-width="0.5" x1="0" x2="400"
-                                y1="50" y2="50"></line>
-                            <line class="stroke-slate-100 dark:stroke-primary/5" stroke-width="0.5" x1="0" x2="400"
-                                y1="75" y2="75"></line>
-                            <!-- Area Gradient Fill -->
-                            <path
-                                d="{{ prediction.history_svg_path }} L400,100 L0,100 Z"
-                                fill="url(#chart-grad)"></path>
-                            <!-- Main Line -->
-                            <path class="stroke-primary"
-                                d="{{ prediction.history_svg_path }}"
-                                fill="none" stroke-linecap="round" stroke-width="3"></path>
-                            <defs>
-                                <lineargradient id="chart-grad" x1="0" x2="0" y1="0" y2="1">
-                                    <stop offset="0%" stop-color="#13ec6d" stop-opacity="0.25"></stop>
-                                    <stop offset="100%" stop-color="#13ec6d" stop-opacity="0"></stop>
-                                </lineargradient>
-                            </defs>
-                            <!-- Data Points/Indicators -->
-                            {% for pt in prediction.history_points %}
-                            <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="2" 
-                                class="{% if pt.risk >= 70 %}fill-red-500{% elif pt.risk >= 35 %}fill-amber-500{% else %}fill-primary{% endif %} stroke-white dark:stroke-background-dark" 
-                                stroke-width="1.5"></circle>
+                    <div class="relative w-full h-64 pt-4">
+                        <!-- Y-Axis Markers -->
+                        <div class="absolute left-[-24px] inset-y-0 flex flex-col justify-between text-[8px] font-black text-slate-400 py-1 pointer-events-none">
+                            <span>100%</span>
+                            <span>50%</span>
+                            <span>0%</span>
+                        </div>
+
+                        <!-- Risk Zones Background (Accessibility Focused) -->
+                        <div class="absolute inset-0 flex flex-col pointer-events-none overflow-hidden rounded-lg">
+                            <div class="h-[40%] bg-red-500/[0.07] border-b border-red-500/10 flex items-start px-2 py-1 relative">
+                                <span class="text-[8px] font-black uppercase text-red-500/40">HIGH</span>
+                                <span class="absolute right-2 top-1 text-[7px] font-bold text-red-500/20">60-100%</span>
+                            </div>
+                            <div class="h-[30%] bg-amber-500/[0.07] border-b border-amber-500/10 flex items-start px-2 py-1 relative">
+                                <span class="text-[8px] font-black uppercase text-amber-500/40">MODERATE</span>
+                                <span class="absolute right-2 top-1 text-[7px] font-bold text-amber-500/20">30-60%</span>
+                            </div>
+                            <div class="h-[30%] bg-primary/[0.07] flex items-start px-2 py-1 relative">
+                                <span class="text-[8px] font-black uppercase text-primary/40">OPTIMAL</span>
+                                <span class="absolute right-2 top-1 text-[7px] font-bold text-primary/20">0-30%</span>
+                            </div>
+                        </div>
+
+                        <svg class="h-full w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 400 100">
+                            <!-- Grid Lines -->
+                            <line x1="0" y1="40" x2="400" y2="40" class="stroke-red-500/20 stroke-[0.5]" stroke-dasharray="2 2" />
+                            <line x1="0" y1="70" x2="400" y2="70" class="stroke-amber-500/20 stroke-[0.5]" stroke-dasharray="2 2" />
+                            
+                            {% for segment in prediction.history_segments %}
+                            <path d="{{ segment.path }}" fill="none" 
+                                  class="path-animate {% if segment.type == 'real' %}stroke-primary stroke-2
+                                         {% elif segment.type == 'interpolated' %}stroke-primary/40 stroke-1 stroke-dashed
+                                         {% else %}stroke-primary/10 stroke-1 stroke-dashed{% endif %}"
+                                  {% if segment.type == 'interpolated' or segment.type == 'gap' %}stroke-dasharray="4 2"{% endif %} />
+                            {% endfor %}
+                            
+                            <!-- Interactive Dots -->
+                            {% for point in prediction.history_points %}
+                            {% set is_today = loop.last %}
+                            <g class="point-animate" style="animation-delay: {{ loop.index * 15 }}ms">
+                                {% if is_today %}
+                                <circle cx="{{ point.x }}" cy="{{ point.y }}" r="8" class="fill-primary/20 animate-pulse"></circle>
+                                {% endif %}
+                                
+                                <circle cx="{{ point.x }}" cy="{{ point.y }}" 
+                                        r="{% if is_today %}5{% else %}3.5{% endif %}" 
+                                        class="{% if not point.is_actual %}fill-background-dark stroke-primary/30{% else %}{% if point.risk > 60 %}fill-red-500{% elif point.risk > 30 %}fill-amber-500{% else %}fill-primary{% endif %} stroke-background-dark{% endif %} stroke-1 cursor-pointer transition-all hover:r-6 risk-point"
+                                        data-point='{{ point | tojson }}'>
+                                </circle>
+                            </g>
                             {% endfor %}
                         </svg>
+                        
                         <!-- X-Axis Labels -->
-                        <div
-                            class="flex justify-between text-[11px] font-bold text-slate-400 dark:text-primary/40">
-                            <span>{{ prediction.history_labels[0] }}</span>
-                            <span>{{ prediction.history_labels[1] }}</span>
-                            <span>{{ prediction.history_labels[2] }}</span>
-                            <span>{{ prediction.history_labels[3] }}</span>
-                            <span>{{ prediction.history_labels[4] }}</span>
+                        <div class="flex justify-between mt-4 border-t border-slate-100 dark:border-white/5 pt-2">
+                            {% for label in prediction.history_labels %}
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">{{ label }}</span>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -325,6 +405,144 @@
             </div>
         </main>
     </div>
+    <div id="risk-tooltip" class="hidden">
+        <div class="tooltip-card">
+            <div class="flex justify-between items-start mb-2">
+                <span id="tt-date" class="text-[10px] font-bold text-white/40 uppercase"></span>
+                <span id="tt-source" class="text-[8px] font-bold px-1.5 py-0.5 rounded uppercase"></span>
+            </div>
+            <div class="flex items-center gap-2 mb-3">
+                <span id="tt-score" class="text-xl font-black text-white"></span>
+                <span id="tt-level" class="text-xs font-bold uppercase tracking-wider"></span>
+            </div>
+            <div id="tt-drivers" class="space-y-1.5 border-t border-white/5 pt-2">
+                <!-- Drivers injected here -->
+            </div>
+            <div id="tt-estimate-note" class="hidden text-[10px] italic text-white/30 mt-2 border-t border-white/5 pt-2">
+                Metric estimated from trend
+            </div>
+            <div class="mt-3 flex justify-between items-center text-[8px] font-bold text-white/20 uppercase tracking-widest">
+                <span>Click to lock</span>
+                <span id="tt-lock-icon" class="material-symbols-outlined !text-[12px]">lock_open</span>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Risk Trend Tooltip Logic ---
+            const tooltip = document.getElementById('risk-tooltip');
+            const points = document.querySelectorAll('.risk-point');
+            let isLocked = false;
+
+            const updateTooltip = (pointData, x, y) => {
+                document.getElementById('tt-date').textContent = pointData.date;
+                document.getElementById('tt-score').textContent = pointData.risk + '%';
+                document.getElementById('tt-level').textContent = pointData.level;
+                
+                const levelEl = document.getElementById('tt-level');
+                levelEl.className = 'text-xs font-bold uppercase tracking-wider ' + 
+                    (pointData.level === 'High' ? 'text-red-500' : pointData.level === 'Medium' ? 'text-amber-500' : 'text-primary');
+
+                const sourceEl = document.getElementById('tt-source');
+                sourceEl.textContent = pointData.is_actual ? 'Logged' : 'Estimated';
+                sourceEl.className = 'text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ' + 
+                    (pointData.is_actual ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white/40');
+
+                const driversContainer = document.getElementById('tt-drivers');
+                const estimateNote = document.getElementById('tt-estimate-note');
+                driversContainer.innerHTML = '';
+
+                if (pointData.drivers) {
+                    estimateNote.classList.add('hidden');
+                    const drivers = [
+                        { label: 'Fatigue', val: pointData.drivers.fatigue, max: 10 },
+                        { label: 'Sleep', val: pointData.drivers.sleep, max: 10 },
+                        { label: 'ACWR', val: pointData.drivers.acwr, custom: true }
+                    ];
+
+                    drivers.forEach(d => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center text-[10px]';
+                        
+                        let valStr = d.val + ' / ' + d.max;
+                        let status = '';
+                        
+                        if (d.custom) {
+                            const isOptimal = d.val >= 0.8 && d.val <= 1.3;
+                            status = isOptimal ? 'text-primary' : 'text-amber-500';
+                            valStr = d.val + ' ' + (isOptimal ? '✓' : '⚠️ ' + (d.val > 1.3 ? 'High' : 'Low'));
+                        }
+
+                        div.innerHTML = `
+                            <span class="text-white/40 font-medium">${d.label}</span>
+                            <span class="text-white font-bold ${status}">${valStr}</span>
+                        `;
+                        driversContainer.appendChild(div);
+                    });
+                } else {
+                    estimateNote.classList.remove('hidden');
+                }
+
+                // Position tooltip
+                tooltip.style.display = 'block';
+                const rect = tooltip.getBoundingClientRect();
+                let left = x + 15;
+                let top = y - rect.height / 2;
+
+                // Collision detection
+                if (left + rect.width > window.innerWidth) left = x - rect.width - 15;
+                if (top < 10) top = 10;
+                if (top + rect.height > window.innerHeight) top = window.innerHeight - rect.height - 10;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+            };
+
+            points.forEach(p => {
+                p.addEventListener('mouseenter', (e) => {
+                    if (isLocked) return;
+                    const data = JSON.parse(p.dataset.point);
+                    updateTooltip(data, e.pageX, e.pageY);
+                });
+
+                p.addEventListener('mouseleave', () => {
+                    if (isLocked) return;
+                    tooltip.style.display = 'none';
+                });
+
+                p.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    isLocked = !isLocked;
+                    tooltip.classList.toggle('locked', isLocked);
+                    document.getElementById('tt-lock-icon').textContent = isLocked ? 'lock' : 'lock_open';
+                    
+                    if (isLocked) {
+                        const data = JSON.parse(p.dataset.point);
+                        updateTooltip(data, e.pageX, e.pageY);
+                    }
+                });
+            });
+
+            // Unlock handlers
+            document.addEventListener('click', (e) => {
+                if (isLocked && !tooltip.contains(e.target)) {
+                    isLocked = false;
+                    tooltip.classList.remove('locked');
+                    tooltip.style.display = 'none';
+                    document.getElementById('tt-lock-icon').textContent = 'lock_open';
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isLocked) {
+                    isLocked = false;
+                    tooltip.classList.remove('locked');
+                    tooltip.style.display = 'none';
+                    document.getElementById('tt-lock-icon').textContent = 'lock_open';
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

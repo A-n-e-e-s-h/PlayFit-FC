@@ -50,6 +50,14 @@
             border-radius: 10px;
         }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white">
@@ -105,7 +113,7 @@
                             style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCII0-CRbg4Gd6iWftP5ZM0KpvBLTvI1G7fYPufS2IEIXeyRHaZqPp6lkFqv5kJ0enWU5lBoFrQwO6TzJ5FyloNWTpTkgNTYSKVDJQVRWWinKtYuHmDiLFwAK-LMAXwyiYsaHeCJP-DyzM6UG_s5f6YEmsBPgvxO7PV3WknxcViCT3N2rHIXq3peLOSfTssqbIafl-p8-GHm4mLZ0OAcUPuqNBsmnneYn30VvWSxMUkB6_M_vxe74ZhoUPN7Xe_6ASUeqzRtpwjtvo");'>
                         </div>
                         <div class="flex flex-col">
-                            <p class="text-sm font-bold truncate">Coach {{ user.username.split('@')[0] | capitalize }}
+                            <p class="text-sm font-bold truncate">Coach {{ user.full_name or (user.username.split('@')[0] | capitalize) }}
                             </p>
                             <p class="text-xs text-slate-500 dark:text-[#92c9a9]">
                                 {% if current_user.sport %}{{ current_user.sport | capitalize }} | {% endif %}Head Performance
@@ -180,7 +188,7 @@
                             <p class="text-slate-500 dark:text-slate-300 text-sm font-medium">Avg. Team Fatigue</p>
                             <span class="material-symbols-outlined text-amber-500">bolt</span>
                         </div>
-                        <h3 class="text-slate-900 dark:text-white text-3xl font-bold">{{ avg_team_fatigue }}%</h3>
+                        <h3 class="text-slate-900 dark:text-white text-3xl font-bold">{% if avg_team_fatigue is not none %}{{ avg_team_fatigue }}%{% else %}--%{% endif %}</h3>
                         <p class="text-xs mt-2 font-medium flex items-center gap-1
                             {% if fatigue_trend > 0 %}text-red-500
                             {% elif fatigue_trend < 0 %}text-primary
@@ -228,8 +236,8 @@
                         </button>
                         {% endif %}
 
-                        <div class="h-64 flex flex-col justify-end gap-4 px-2 sm:px-6 relative">
-                            <div class="flex-1 relative">
+                        <div class="h-72 flex flex-col gap-2 px-2 sm:px-6 relative">
+                            <div class="h-56 relative">
                                 <!-- Chart SVG Placeholder -->
                                 <svg class="w-full h-full group" fill="none" preserveAspectRatio="none" viewBox="0 0 400 150">
                                     <!-- Grid Lines -->
@@ -239,9 +247,9 @@
 
                                     <!-- Paths -->
                                     <path d="{{ workload_svg_path }}" fill="none"
-                                        stroke="#326748" stroke-dasharray="4 4" stroke-width="2"></path>
+                                        stroke="#326748" stroke-dasharray="4 4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                                     <path d="{{ fatigue_svg_path }}" fill="none"
-                                        stroke="#13ec6d" stroke-width="3"></path>
+                                        stroke="#13ec6d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                                         
                                     <!-- Tooltip Data Points -->
                                     {% for p in workload_points %}
@@ -264,10 +272,20 @@
                                         </linearGradient>
                                     </defs>
                                 </svg>
+                                {% if not workload_points and not fatigue_points %}
+                                <div class="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-[#102218]/50 rounded-lg backdrop-blur-[1px]">
+                                    <span class="material-symbols-outlined text-slate-400 dark:text-slate-600 text-4xl mb-2">bar_chart_off</span>
+                                    <p class="text-slate-500 dark:text-slate-400 text-xs font-bold">No activity data available yet</p>
+                                    <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Data will appear once players submit wellness logs</p>
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="flex justify-between px-2">
-                                {% for label in chart_labels %}
-                                    <span class="text-[10px] text-slate-400 dark:text-[#92c9a9] rotate-45 inline-block origin-left mt-1 whitespace-nowrap">{{ label }}</span>
+                            <div class="relative w-full h-12 mt-2">
+                                {% for p in workload_points %}
+                                    <span class="absolute text-[10px] text-slate-400 dark:text-[#92c9a9] whitespace-nowrap" 
+                                          style="left: {{ (p.x / 400) * 100 }}%; top: 0; transform: translateX(-50%) rotate(45deg); transform-origin: top center;">
+                                        {{ p.date }}
+                                    </span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -289,18 +307,20 @@
                     <a href="/analytics"
                         class="bg-white dark:bg-[#102218] border border-slate-200 dark:border-[#326748] p-6 rounded-xl flex flex-col hover:border-primary/50 transition-all cursor-pointer">
                         <h4 class="text-slate-900 dark:text-white font-bold text-lg mb-4">Risk Alerts</h4>
-                        <div class="space-y-4 flex-1">
+                        <div class="space-y-3 flex-1 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
                             {% for alert in risk_alerts %}
-                            <div class="p-3 {% if alert.type == 'CRITICAL FATIGUE' %}bg-red-50 dark:bg-red-500/10 border-red-500{% else %}bg-amber-50 dark:bg-amber-500/10 border-amber-500{% endif %} border-l-4 rounded-r-lg hover:shadow-md transition-shadow">
-                                <p class="text-xs font-bold {% if alert.type == 'CRITICAL FATIGUE' %}text-red-600 dark:text-red-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ alert.type }}</p>
-                                <p class="text-sm font-medium dark:text-slate-200">{{ alert.message }}</p>
-                                <p class="text-[10px] text-slate-500 mt-1">{{ alert.time }}</p>
+                            <div class="p-2.5 {% if alert.type == 'CRITICAL FATIGUE' %}bg-red-50 dark:bg-red-500/10 border-red-500{% else %}bg-amber-50 dark:bg-amber-500/10 border-amber-500{% endif %} border-l-4 rounded-r-lg hover:shadow-md transition-shadow">
+                                <div class="flex justify-between items-start mb-1">
+                                    <p class="text-[10px] font-bold {% if alert.type == 'CRITICAL FATIGUE' %}text-red-600 dark:text-red-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">{{ alert.type }}</p>
+                                    <p class="text-[9px] text-slate-500">{{ alert.time }}</p>
+                                </div>
+                                <p class="text-sm font-bold dark:text-slate-100 leading-tight">{{ alert.player_name }}</p>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{{ alert.message }}</p>
                             </div>
                             {% else %}
-                            <div class="flex flex-col items-center justify-center h-full opacity-40 py-8">
-                                <span class="material-symbols-outlined text-4xl mb-2">check_circle</span>
-                                <p class="text-xs font-bold uppercase tracking-wider">All Squad Safe</p>
-                                <p class="text-[10px]">No high-risk players detected</p>
+                            <div class="flex flex-col items-center justify-center h-full opacity-40 py-12">
+                                <span class="material-symbols-outlined text-[48px] mb-2">check_circle</span>
+                                <p class="text-xs font-bold">No active risk alerts</p>
                             </div>
                             {% endfor %}
                         </div>
@@ -317,6 +337,7 @@
                     <div
                         class="px-6 py-5 border-b border-slate-200 dark:border-[#326748] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <h2 class="text-slate-900 dark:text-white text-lg font-bold">Team Injury Risk Status</h2>
+
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
@@ -336,8 +357,8 @@
                                         <div class="flex items-center gap-3">
                                             <div
                                                 class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                                                {{ player.username[:2] }}</div>
-                                            <span class="text-sm font-bold capitalize">{{ player.username.split('@')[0] }}</span>
+                                                {{ (player.name or player.username)[:2] }}</div>
+                                            <span class="text-sm font-bold capitalize">{{ player.name or player.username.split('@')[0] }}</span>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-sm font-medium">{{ player.position or 'N/A' }}</td>
@@ -351,10 +372,17 @@
                                     </td>
                                     <td class="px-6 py-4 text-xs font-semibold text-slate-600 dark:text-[#92c9a9]">
                                         {% if player.top_factors %}
-                                            <span class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-xs text-orange-400">psychology</span>
-                                                {{ player.top_factors[0].feature }}
-                                            </span>
+                                            <div class="flex flex-col gap-1">
+                                            {% for factor in player.top_factors[:2] %}
+                                                <span class="flex items-center gap-1.5 text-slate-700 dark:text-white">
+                                                    <span class="text-sm">{% if factor.severity == 'critical' %}🔴{% elif factor.severity == 'moderate' %}🟠{% else %}🟢{% endif %}</span>
+                                                    {{ factor.label }}
+                                                </span>
+                                            {% endfor %}
+                                            {% if player.top_factors|length > 2 %}
+                                                <span class="text-[9px] text-slate-400 font-medium ml-4 mt-1 cursor-help" title="{{ player.top_factors|map(attribute='label')|join('&#10;') }}">+{{ player.top_factors|length - 2 }} more</span>
+                                            {% endif %}
+                                            </div>
                                         {% else %}
                                             <span class="opacity-40 italic">Baseline</span>
                                         {% endif %}

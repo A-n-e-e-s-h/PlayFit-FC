@@ -48,6 +48,14 @@
             font-variation-settings: 'FILL' 1;
         }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen">
@@ -100,7 +108,7 @@
                     style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCTGiL0SPi2-X-_t670jzY9CFRAsCO7a9eLEz4eLuIxdKONK4lZXdpE6uxZiFkPpnxb92rNZB8PyzGJ6IU97apxhRbP0Xix7eD1Gwm1Tv8riQMKjYKToN_ctbs7RS02KvvPmrK8ffq6eD4w30BIM_XM9EBJb3Fqgj7CBjKwRnhPAXrt_0mQGXsnOfsqHRtAP4vBgjd9dgQfaymU5DwgdnNpgyYOOjXTMliSDv0G3mNpzaEvtbv_bbTJ7qvX9AyUHp1wVhHRDhI0TLE")'>
                 </div>
                 <div class="flex flex-col">
-                    <p class="text-xs font-bold text-slate-900 dark:text-white">Coach {{ user.username.split('@')[0] |
+                    <p class="text-xs font-bold text-slate-900 dark:text-white">Coach {{ user.full_name or user.username.split('@')[0] |
                         capitalize }}</p>
                     <p class="text-[10px] text-slate-500 dark:text-[#92c9a9]">Head of Performance</p>
                 </div>
@@ -119,7 +127,7 @@
                     <form action="/player_management" method="GET">
                         <select name="player_id" onchange="this.form.submit()" class="bg-slate-50 dark:bg-card-dark border border-slate-200 dark:border-border-dark text-slate-700 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-48 p-2.5 outline-none">
                             {% for p in team_players %}
-                                <option value="{{ p.player_id }}" class="bg-white dark:bg-[#1a2e23] text-slate-900 dark:text-white" {% if selected_player and p.player_id == selected_player.player_id %}selected{% endif %}>{{ p.username.split('@')[0] | capitalize }}</option>
+                                <option value="{{ p.player_id }}" class="bg-white dark:bg-[#1a2e23] text-slate-900 dark:text-white" {% if selected_player and p.player_id == selected_player.player_id %}selected{% endif %}>{{ p.name or p.username.split('@')[0] | capitalize }}</option>
                             {% endfor %}
                         </select>
                     </form>
@@ -140,7 +148,7 @@
                         </div>
                         <div class="flex-1 space-y-2">
                             <div class="flex items-center gap-3">
-                                <h3 class="text-3xl font-bold text-slate-900 dark:text-white">{% if selected_player %}{{ selected_player.username.split('@')[0] | capitalize }}{% else %}No Player{% endif %}</h3>
+                                <h3 class="text-3xl font-bold text-slate-900 dark:text-white">{% if selected_player %}{{ selected_player.name or selected_player.username.split('@')[0] | capitalize }}{% else %}No Player{% endif %}</h3>
                                 {% if prediction %}
                                 <span class="px-3 py-1 text-xs font-bold rounded-full border uppercase
                                     {% if prediction.risk_level == 'High' %}bg-red-500/10 text-red-500 border-red-500/20
@@ -246,7 +254,7 @@
                             <p class="text-xs {% if sleep_data == 'Poor' %}text-rose-500{% elif sleep_data == 'Average' %}text-amber-500{% else %}text-primary{% endif %} font-medium">Quality Rating</p>
                         </div>
                         <div class="mt-4 h-1 w-full bg-slate-100 dark:bg-border-dark rounded-full overflow-hidden">
-                            <div class="h-full {% if sleep_data == 'Poor' %}bg-rose-500 w-[30%]{% elif sleep_data == 'Average' %}bg-amber-500 w-[60%]{% else %}bg-primary w-[90%]{% endif %}"></div>
+                            <div class="h-full {% if sleep_data == 'Poor' %}bg-rose-500 w-[30%]{% elif sleep_data == 'Average' %}bg-amber-500 w-[60%]{% elif sleep_data == 'Good' %}bg-primary w-[90%]{% else %}bg-slate-300 dark:bg-slate-700 w-0{% endif %}"></div>
                         </div>
                     </div>
                     <!-- Stress Card -->
@@ -262,7 +270,7 @@
                             <p class="text-xs text-slate-500 dark:text-[#92c9a9] font-medium">Self-Reported</p>
                         </div>
                         <div class="mt-4 h-1 w-full bg-slate-100 dark:bg-border-dark rounded-full overflow-hidden">
-                            <div class="h-full {% if soreness_data == 'High' %}bg-rose-500 w-[90%]{% elif soreness_data == 'Medium' %}bg-amber-500 w-[60%]{% else %}bg-primary w-[30%]{% endif %}"></div>
+                            <div class="h-full {% if soreness_data == 'High' %}bg-rose-500 w-[90%]{% elif soreness_data == 'Medium' %}bg-amber-500 w-[60%]{% elif soreness_data == 'Low' %}bg-primary w-[30%]{% else %}bg-slate-300 dark:bg-slate-700 w-0{% endif %}"></div>
                         </div>
                     </div>
                 </div>
