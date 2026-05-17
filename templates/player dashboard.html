@@ -45,7 +45,62 @@
             stroke-dashoffset: 100;
             /* Adjusted for visual progress */
         }
+
+        /* SVG Animations */
+        .path-animate {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: draw 1.2s ease-out forwards;
+        }
+
+        @keyframes draw {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .point-animate {
+            opacity: 0;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Tooltip Styles */
+        #risk-tooltip {
+            position: absolute;
+            display: none;
+            pointer-events: none;
+            z-index: 1000;
+            transition: opacity 0.2s;
+        }
+
+        #risk-tooltip.locked {
+            pointer-events: auto;
+        }
+
+        .tooltip-card {
+            background: rgba(22, 45, 32, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(19, 236, 109, 0.2);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            min-width: 180px;
+        }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen">
@@ -104,7 +159,7 @@
                         <div class="flex justify-between items-center w-full">
                             <h2 class="text-slate-900 dark:text-white text-4xl font-black tracking-tight">
                                 {% if current_user.login_count <= 1 %}Welcome,{% else %}Welcome back,{% endif %} 
-                                {{ user.username.split('@')[0] | capitalize }}
+                                {{ user.full_name or (user.username.split('@')[0] | capitalize) }}
                             </h2>
                             <!-- Notification Bell -->
                             <div class="relative">
@@ -159,6 +214,7 @@
                         </div>
                         <p class="text-slate-500 dark:text-primary/70 text-base font-medium">Your injury risk is
                             currently <span class="text-primary">{{ prediction.risk_level }}</span></p>
+
                     </div>
                 </header>
                 <div class="grid grid-cols-12 gap-6">
@@ -189,54 +245,81 @@
                                 <div class="mt-4">
                                     <p class="text-slate-900 dark:text-white font-bold">Injury Risk Level</p>
                                 </div>
-                                <!-- SHAP Factors Integration -->
-                                {% if prediction.top_factors %}
                                 <div class="mt-6 w-full border-t border-slate-100 dark:border-white/5 pt-4">
-                                    <p class="text-xs font-bold text-slate-500 dark:text-[#92c9a9] uppercase tracking-widest mb-3">Main Risk Drivers</p>
-                                    <div class="space-y-2">
+                                    <p class="text-xs font-bold text-slate-500 dark:text-[#92c9a9] uppercase tracking-widest mb-3">
+                                        {{ prediction.factors_label }}
+                                    </p>
+                                    {% if prediction.top_factors %}
+                                    <ul class="space-y-2">
                                         {% for factor in prediction.top_factors %}
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs font-bold text-slate-700 dark:text-white">{{ factor.feature }}</span>
-                                            <span class="text-[10px] font-black {% if factor.impact > 0 %}text-red-500{% else %}text-primary{% endif %} uppercase">
-                                                {{ factor.impact_str }} Impact
-                                            </span>
-                                        </div>
-                                        <div class="w-full bg-slate-100 dark:bg-white/5 h-1.5 rounded-full overflow-hidden">
-                                            <div class="h-full {% if factor.impact > 0 %}bg-red-500{% else %}bg-primary{% endif %} dynamic-width" data-width="{{ factor.width_pct }}%"></div>
-                                        </div>
+                                        <li class="flex items-center gap-2">
+                                            <span class="text-lg">{% if factor.severity == 'critical' %}🔴{% elif factor.severity == 'moderate' %}🟠{% else %}🟢{% endif %}</span>
+                                            <span class="text-xs font-bold text-slate-700 dark:text-white">{{ factor.label }}</span>
+                                        </li>
                                         {% endfor %}
-                                    </div>
+                                    </ul>
+                                    {% else %}
+                                    <p class="text-[10px] text-primary/60 mt-3 italic text-center">All key metrics are within safe ranges.</p>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                             </div>
                             <!-- Quick Stats Cards -->
-                            <div class="grid grid-rows-2 gap-4">
-                                <div
-                                    class="bg-white dark:bg-[#162d20] rounded-2xl p-6 border border-slate-200 dark:border-white/5 flex items-center gap-4">
-                                    <div class="bg-primary/20 text-primary p-3 rounded-xl">
+                            <div class="grid grid-rows-3 gap-4">
+                                <div class="bg-white dark:bg-[#162d20] rounded-2xl p-4 border border-slate-200 dark:border-white/5 flex items-center gap-4">
+                                    <div class="bg-primary/20 text-primary p-2.5 rounded-xl shrink-0">
                                         <span class="material-symbols-outlined">calendar_today</span>
                                     </div>
                                     <div>
-                                        <p
-                                            class="text-slate-500 dark:text-white/60 text-xs font-bold uppercase tracking-wider">
-                                            Days Injury Free</p>
-                                        <p class="text-2xl font-black text-slate-900 dark:text-white">{{ prediction.days_injury_free }}</p>
+                                        <p class="text-slate-500 dark:text-white/60 text-[10px] font-bold uppercase tracking-wider">Days Injury Free</p>
+                                        <p class="text-xl font-black text-slate-900 dark:text-white">{{ prediction.days_injury_free }}</p>
                                     </div>
                                 </div>
-                                <div
-                                    class="bg-white dark:bg-[#162d20] rounded-2xl p-6 border border-slate-200 dark:border-white/5 flex items-center gap-4">
-                                    <div class="bg-blue-500/20 text-blue-400 p-3 rounded-xl">
+                                <div class="bg-white dark:bg-[#162d20] rounded-2xl p-4 border border-slate-200 dark:border-white/5 flex items-center gap-4 relative">
+                                    <div class="bg-blue-500/20 text-blue-400 p-2.5 rounded-xl shrink-0">
                                         <span class="material-symbols-outlined">bedtime</span>
                                     </div>
                                     <div>
-                                        <p
-                                            class="text-slate-500 dark:text-white/60 text-xs font-bold uppercase tracking-wider">
-                                            Avg. Sleep (7d)</p>
-                                        <p class="text-2xl font-black text-slate-900 dark:text-white">{{ prediction.avg_sleep }}</p>
+                                        <p class="text-slate-500 dark:text-white/60 text-[10px] font-bold uppercase tracking-wider">Sleep (7d Avg)</p>
+                                        <p class="text-xl font-black text-slate-900 dark:text-white">{{ prediction.avg_sleep }}</p>
                                     </div>
+                                    {% if prediction.sleep_limited %}
+                                    <span class="absolute top-2 right-2 text-[8px] font-bold bg-white/5 text-white/40 px-1.5 py-0.5 rounded border border-white/5">Limited data</span>
+                                    {% endif %}
+                                </div>
+                                <div class="bg-white dark:bg-[#162d20] rounded-2xl p-4 border border-slate-200 dark:border-white/5 flex items-center gap-4 relative">
+                                    <div class="bg-amber-500/20 text-amber-400 p-2.5 rounded-xl shrink-0">
+                                        <span class="material-symbols-outlined">fitness_center</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-slate-500 dark:text-white/60 text-[10px] font-bold uppercase tracking-wider">Soreness (7d Avg)</p>
+                                        <p class="text-xl font-black text-slate-900 dark:text-white">{{ prediction.avg_soreness }}</p>
+                                    </div>
+                                    {% if prediction.soreness_limited %}
+                                    <span class="absolute top-2 right-2 text-[8px] font-bold bg-white/5 text-white/40 px-1.5 py-0.5 rounded border border-white/5">Limited data</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Analysis Insight Box -->
+                        <div class="bg-white dark:bg-[#162d20] rounded-2xl p-5 border border-slate-200 dark:border-white/5">
+                            <div class="flex items-start gap-4">
+                                <div class="p-2 rounded-lg shrink-0
+                                    {% if prediction.insight_status == 'red' %}bg-red-500/20 text-red-500
+                                    {% elif prediction.insight_status == 'yellow' %}bg-amber-500/20 text-amber-500
+                                    {% elif prediction.insight_status == 'green' %}bg-primary/20 text-primary
+                                    {% else %}bg-slate-500/20 text-slate-500{% endif %}">
+                                    <span class="material-symbols-outlined">analytics</span>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-xs font-bold text-slate-500 dark:text-white/40 uppercase tracking-widest">Analysis Insight</p>
+                                    <p class="text-sm font-medium text-slate-800 dark:text-white/90 leading-snug">
+                                        {{ prediction.insight_message }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <!-- Right Column: Recommendations & Wellness -->
                     <div class="col-span-12 lg:col-span-4 space-y-6">
@@ -372,6 +455,28 @@
             </div>
         </main>
     </div>
+    <div id="risk-tooltip" class="hidden">
+        <div class="tooltip-card">
+            <div class="flex justify-between items-start mb-2">
+                <span id="tt-date" class="text-[10px] font-bold text-white/40 uppercase"></span>
+                <span id="tt-source" class="text-[8px] font-bold px-1.5 py-0.5 rounded uppercase"></span>
+            </div>
+            <div class="flex items-center gap-2 mb-3">
+                <span id="tt-score" class="text-xl font-black text-white"></span>
+                <span id="tt-level" class="text-xs font-bold uppercase tracking-wider"></span>
+            </div>
+            <div id="tt-drivers" class="space-y-1.5 border-t border-white/5 pt-2">
+                <!-- Drivers injected here -->
+            </div>
+            <div id="tt-estimate-note" class="hidden text-[10px] italic text-white/30 mt-2 border-t border-white/5 pt-2">
+                Metric estimated from trend
+            </div>
+            <div class="mt-3 flex justify-between items-center text-[8px] font-bold text-white/20 uppercase tracking-widest">
+                <span>Click to lock</span>
+                <span id="tt-lock-icon" class="material-symbols-outlined !text-[12px]">lock_open</span>
+            </div>
+        </div>
+    </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Apply dynamic styles from data attributes
@@ -379,14 +484,125 @@
                 if (el.dataset.width) el.style.width = el.dataset.width;
             });
 
-            // Close notification dropdown when clicking outside
-            document.addEventListener('click', (event) => {
+            // --- Risk Trend Tooltip Logic ---
+            const tooltip = document.getElementById('risk-tooltip');
+            const points = document.querySelectorAll('.risk-point');
+            let isLocked = false;
+
+            const updateTooltip = (pointData, x, y) => {
+                document.getElementById('tt-date').textContent = pointData.date;
+                document.getElementById('tt-score').textContent = pointData.risk + '%';
+                document.getElementById('tt-level').textContent = pointData.level;
+                
+                const levelEl = document.getElementById('tt-level');
+                levelEl.className = 'text-xs font-bold uppercase tracking-wider ' + 
+                    (pointData.level === 'High' ? 'text-red-500' : pointData.level === 'Medium' ? 'text-amber-500' : 'text-primary');
+
+                const sourceEl = document.getElementById('tt-source');
+                sourceEl.textContent = pointData.is_actual ? 'Logged' : 'Estimated';
+                sourceEl.className = 'text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ' + 
+                    (pointData.is_actual ? 'bg-primary/20 text-primary' : 'bg-white/10 text-white/40');
+
+                const driversContainer = document.getElementById('tt-drivers');
+                const estimateNote = document.getElementById('tt-estimate-note');
+                driversContainer.innerHTML = '';
+
+                if (pointData.drivers) {
+                    estimateNote.classList.add('hidden');
+                    const drivers = [
+                        { label: 'Fatigue', val: pointData.drivers.fatigue, max: 10 },
+                        { label: 'Sleep', val: pointData.drivers.sleep, max: 10 },
+                        { label: 'ACWR', val: pointData.drivers.acwr, custom: true }
+                    ];
+
+                    drivers.forEach(d => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center text-[10px]';
+                        
+                        let valStr = d.val + ' / ' + d.max;
+                        let status = '';
+                        
+                        if (d.custom) {
+                            const isOptimal = d.val >= 0.8 && d.val <= 1.3;
+                            status = isOptimal ? 'text-primary' : 'text-amber-500';
+                            valStr = d.val + ' ' + (isOptimal ? '✓' : '⚠️ ' + (d.val > 1.3 ? 'High' : 'Low'));
+                        }
+
+                        div.innerHTML = `
+                            <span class="text-white/40 font-medium">${d.label}</span>
+                            <span class="text-white font-bold ${status}">${valStr}</span>
+                        `;
+                        driversContainer.appendChild(div);
+                    });
+                } else {
+                    estimateNote.classList.remove('hidden');
+                }
+
+                // Position tooltip
+                tooltip.style.display = 'block';
+                const rect = tooltip.getBoundingClientRect();
+                let left = x + 15;
+                let top = y - rect.height / 2;
+
+                // Collision detection
+                if (left + rect.width > window.innerWidth) left = x - rect.width - 15;
+                if (top < 10) top = 10;
+                if (top + rect.height > window.innerHeight) top = window.innerHeight - rect.height - 10;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+            };
+
+            points.forEach(p => {
+                p.addEventListener('mouseenter', (e) => {
+                    if (isLocked) return;
+                    const data = JSON.parse(p.dataset.point);
+                    updateTooltip(data, e.pageX, e.pageY);
+                });
+
+                p.addEventListener('mouseleave', () => {
+                    if (isLocked) return;
+                    tooltip.style.display = 'none';
+                });
+
+                p.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    isLocked = !isLocked;
+                    tooltip.classList.toggle('locked', isLocked);
+                    document.getElementById('tt-lock-icon').textContent = isLocked ? 'lock' : 'lock_open';
+                    
+                    if (isLocked) {
+                        const data = JSON.parse(p.dataset.point);
+                        updateTooltip(data, e.pageX, e.pageY);
+                    }
+                });
+            });
+
+            // Unlock handlers
+            document.addEventListener('click', (e) => {
+                if (isLocked && !tooltip.contains(e.target)) {
+                    isLocked = false;
+                    tooltip.classList.remove('locked');
+                    tooltip.style.display = 'none';
+                    document.getElementById('tt-lock-icon').textContent = 'lock_open';
+                }
+
+                // Existing notification logic
                 const dropdown = document.getElementById('notification-dropdown');
                 const button = dropdown ? dropdown.previousElementSibling : null;
                 if (dropdown && !dropdown.classList.contains('hidden') && button) {
-                    if (!dropdown.contains(event.target) && !button.contains(event.target)) {
+                    if (!dropdown.contains(e.target) && !button.contains(e.target)) {
                         dropdown.classList.add('hidden');
                     }
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isLocked) {
+                    isLocked = false;
+                    tooltip.classList.remove('locked');
+                    tooltip.style.display = 'none';
+                    document.getElementById('tt-lock-icon').textContent = 'lock_open';
                 }
             });
         });

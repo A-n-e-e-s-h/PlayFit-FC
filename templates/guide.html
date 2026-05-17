@@ -285,6 +285,14 @@
 
         document.addEventListener('DOMContentLoaded', initExercises);
     </script>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased">

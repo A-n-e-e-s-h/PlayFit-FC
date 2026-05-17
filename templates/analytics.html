@@ -48,6 +48,14 @@
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body
@@ -97,6 +105,7 @@
             <div class="flex min-w-72 flex-col gap-2">
                 <p class="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Team
                     Analytics & Reports</p>
+
                 <p class="text-slate-500 dark:text-[#92c9a9] text-base font-normal leading-normal">Real-time injury risk
                     assessment and fatigue correlation dashboard.</p>
             </div>
@@ -109,8 +118,8 @@
                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Avg. Squad Risk</p>
                 <div class="flex items-end gap-2 mt-2">
                     <p class="text-3xl font-black text-primary">{{ stats.avg_risk }}%</p>
-                    <span class="text-xs text-red-400 mb-1 flex items-center">
-                        <span class="material-symbols-outlined text-xs">arrow_upward</span> {{ stats.risk_trend }}%
+                    <span class="text-xs {% if stats.risk_trend > 0 %}text-red-400{% elif stats.risk_trend < 0 %}text-primary{% else %}text-slate-400{% endif %} mb-1 flex items-center">
+                        <span class="material-symbols-outlined text-xs">{% if stats.risk_trend > 0 %}arrow_upward{% elif stats.risk_trend < 0 %}arrow_downward{% else %}horizontal_rule{% endif %}</span> {{ stats.risk_trend|abs }}%
                     </span>
                 </div>
             </div>
@@ -118,8 +127,8 @@
                 <p class="text-slate-500 dark:text-[#92c9a9] text-sm font-medium">Active Injuries</p>
                 <div class="flex items-end gap-2 mt-2">
                     <p class="text-3xl font-black text-slate-900 dark:text-white">{{ stats.active_injuries }}</p>
-                    <span class="text-xs text-primary mb-1 flex items-center">
-                        <span class="material-symbols-outlined text-xs">arrow_downward</span> {{ stats.injury_trend }}
+                    <span class="text-xs {% if stats.injury_trend > 0 %}text-red-400{% elif stats.injury_trend < 0 %}text-primary{% else %}text-slate-400{% endif %} mb-1 flex items-center">
+                        <span class="material-symbols-outlined text-xs">{% if stats.injury_trend > 0 %}arrow_upward{% elif stats.injury_trend < 0 %}arrow_downward{% else %}horizontal_rule{% endif %}</span> {{ stats.injury_trend|abs }}
                     </span>
                 </div>
             </div>
@@ -160,7 +169,8 @@
                     {% endfor %}
                 </div>
                 <div class="flex items-center gap-2 py-3 lg:py-0">
-                    <input type="date" id="reportDate" 
+                    <input type="date" id="reportDate" value="{{ selected_date }}"
+                        onchange="window.location.href='/analytics?squad={{ selected_squad }}&date=' + this.value"
                         class="h-9 px-3 rounded-lg border border-slate-200 dark:border-[#234833] bg-transparent text-sm text-slate-600 dark:text-slate-300 outline-none focus:border-primary transition-all" />
                     <button onclick="downloadReport()"
                         class="flex items-center justify-center rounded-lg h-9 bg-primary px-4 text-background-dark gap-2 text-sm font-bold hover:bg-green-400 transition-colors">
@@ -283,7 +293,7 @@
                                             {% if report.squad == 'all' %}All Squads
                                             {% elif report.squad == 'mens' %}Men's Team
                                             {% elif report.squad == 'womens' %}Women's Team
-                                            {% else %}{{ report.squad.capitalize() }}{% endif %}
+                                            {% else %}{{ (report.squad or 'Unknown').capitalize() }}{% endif %}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
@@ -339,10 +349,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Set default date to today
-            const today = new Date().toISOString().split('T')[0];
             const dateInput = document.getElementById('reportDate');
-            if (dateInput) dateInput.value = today;
+            if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
 
             // Apply dynamic styles from data attributes
             document.querySelectorAll('.dynamic-pos').forEach(el => {

@@ -56,6 +56,14 @@
             /* Firefox */
         }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-dark text-slate-100 min-h-screen">
@@ -73,10 +81,10 @@
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-3 px-4 py-2 bg-card-dark rounded-xl border border-border-dark">
                     <div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                        {{ user.username[:2].upper() }}
+                        {{ (user.full_name or user.username)[:2].upper() }}
                     </div>
                     <div class="flex flex-col">
-                        <span class="text-xs font-bold">{{ user.username.split('@')[0] }}</span>
+                        <span class="text-xs font-bold">{{ user.full_name or user.username.split('@')[0] }}</span>
                         <span class="text-[10px] text-[#92c9a9] uppercase font-black">Head Coach</span>
                     </div>
                 </div>

@@ -102,24 +102,31 @@ def generate_report_data(team_code, period_days=30, squad='all', target_date=Non
                 ORDER BY entry_date DESC LIMIT 1
             ''', (p_id, target_date_str)).fetchone()
             
-            # B. Injury Status as of target_date
-            injury = conn.execute('''
-                SELECT injury_type, recovery_days, injury_date 
-                FROM injury_history 
-                WHERE player_id = ? AND injury_date <= ?
-                ORDER BY injury_date DESC LIMIT 1
+            # B. Injury Status as of target_date (Check latest status up to target_date)
+            injury_status_row = conn.execute('''
+                SELECT active_injury FROM training_data 
+                WHERE player_id = ? AND training_date <= ?
+                ORDER BY training_date DESC, training_id DESC LIMIT 1
             ''', (p_id, target_date_str)).fetchone()
+            
+            is_injured = True if injury_status_row and injury_status_row['active_injury'] == 1 else False
             
             # C. Prediction as of target_date
             pred_row = conn.execute('''
                 SELECT risk_level, risk_score 
-                FROM risk_prediction 
-                WHERE player_id = ? AND prediction_date <= ?
-                ORDER BY prediction_date DESC LIMIT 1
+                FROM predictions 
+                WHERE player_id = ? AND date(prediction_date) <= date(?)
+                ORDER BY prediction_date DESC, prediction_id DESC LIMIT 1
             ''', (p_id, target_date_str)).fetchone()
             
-            risk_level = pred_row['risk_level'] if pred_row else 'Low'
-            risk_score = float(pred_row['risk_score']) if pred_row else 0.0
+            if not pred_row:
+                # Trigger live prediction and save to DB
+                prediction = get_player_prediction(p_id)
+                risk_level = prediction.get('risk_level', 'Low')
+                risk_score = float(prediction.get('risk_score', 0))
+            else:
+                risk_level = pred_row['risk_level']
+                risk_score = float(pred_row['risk_score'])
             
             data['risk_dist'][risk_level] = data['risk_dist'].get(risk_level, 0) + 1
             
@@ -170,10 +177,10 @@ def generate_report_data(team_code, period_days=30, squad='all', target_date=Non
                 data['acwr_groups']['optimal'].append(name)
                 
             status = 'Fit'
-            if injury:
+            if is_injured:
                 status = 'Recovering'
                 if not any(inj['name'] == name for inj in data['active_injuries']):
-                    data['active_injuries'].append({'name': name, 'type': 'Previous Injury', 'recommendation': 'Monitor load closely.'})
+                    data['active_injuries'].append({'name': name, 'type': 'Recent Injury', 'recommendation': 'Monitor load closely.'})
             elif risk_level == 'High' or acwr > 1.3:
                 status = 'At Risk'
             

@@ -98,11 +98,14 @@ def generate_team_report_pdf(team_name, coach_name, period, data, squad_name=Non
     player_headers = ['Name', 'Position', 'Risk %', 'Level', 'ACWR', 'Fatigue', 'Sleep', 'Soreness', 'Status']
     table_data = [player_headers]
     for p in data.get('players', []):
+        # Clean risk level for professional report display
+        risk_level = str(p.get('risk_level', '')).replace(' (Wellness-only)', '')
+        
         table_data.append([
             str(p.get('name', '')),
             str(p.get('position', '')),
             f"{p.get('risk_score', 0)}%",
-            str(p.get('risk_level', '')),
+            risk_level,
             str(p.get('acwr', 0)),
             str(p.get('fatigue', '')),
             str(p.get('sleep', '')),
@@ -110,7 +113,8 @@ def generate_team_report_pdf(team_name, coach_name, period, data, squad_name=Non
             str(p.get('status', ''))
         ])
     
-    t_players = Table(table_data, colWidths=[100, 60, 50, 60, 50, 50, 50, 60, 60])
+    # Adjust widths to fit 532pt usable area (Letter width 612 - 80 margins)
+    t_players = Table(table_data, colWidths=[90, 60, 45, 60, 45, 45, 45, 60, 60])
     t_players.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#374151')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),

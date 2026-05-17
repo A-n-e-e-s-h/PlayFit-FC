@@ -47,6 +47,14 @@
             scrollbar-width: none;
         }
     </style>
+    <script>
+        // Auth Guard: Log out and redirect to homepage on page refresh
+        (function () {
+            var navEntry = performance.getEntriesByType('navigation')[0];
+            var isReload = navEntry ? navEntry.type === 'reload' : (performance.navigation && performance.navigation.type === 1);
+            if (isReload) { window.location.replace('/logout'); }
+        })();
+    </script>
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
@@ -103,7 +111,7 @@
                                             {% if report.squad == 'all' %}All Squads
                                             {% elif report.squad == 'mens' %}Men's Team
                                             {% elif report.squad == 'womens' %}Women's Team
-                                            {% else %}{{ report.squad.capitalize() }}{% endif %}
+                                            {% else %}{{ (report.squad or 'Unknown').capitalize() }}{% endif %}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
