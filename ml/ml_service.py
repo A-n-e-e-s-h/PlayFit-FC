@@ -84,6 +84,101 @@ def _score_prediction(probabilities, risk_data):
 
     return risk_score, risk_level
 
+def _build_prediction_summary(risk_score, risk_level, risk_data, target_date_obj):
+    """Build a lightweight prediction summary without SHAP or history generation."""
+    confidence_suffix = ""
+    last_date = pd.to_datetime(risk_data.get('wellness_df').iloc[0]['entry_date']) if not risk_data['wellness_df'].empty else None
+    if last_date and (target_date_obj - last_date).days > 2:
+        confidence_suffix = " (Low Confidence - Stale Data)"
+    elif not risk_data['has_workload']:
+        confidence_suffix = " (Wellness-only)"
+    elif not risk_data['has_wellness']:
+        confidence_suffix = " (Workload-only)"
+
+    return {
+        "risk_score": risk_score,
+        "risk_level": risk_level + confidence_suffix,
+        "risk_level_base": risk_level,
+        "has_wellness": risk_data.get('has_wellness', False),
+        "has_workload": risk_data.get('has_workload', False)
+    }
+
+def get_player_risk_snapshot(player_id, target_date=None):
+    """Fast risk lookup for team analytics/report pages without history or explanation payloads."""
+    model, scaler = _load_model_assets()
+    if not model or not scaler:
+        return {
+            "risk_score": 0,
+            "risk_level": "Model needs training.",
+            "risk_level_base": "Low",
+            "has_wellness": False,
+            "has_workload": False
+        }
+
+    today_obj = pd.to_datetime('today').normalize()
+    if target_date is None:
+        target_date_obj = today_obj
+    else:
+        target_date_obj = pd.to_datetime(target_date).normalize()
+
+    target_date_str = target_date_obj.strftime('%Y-%m-%d')
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        player = conn.execute('SELECT * FROM players WHERE player_id = ?', (player_id,)).fetchone()
+        if not player:
+            return {
+                "risk_score": 0,
+                "risk_level": "Player not found.",
+                "risk_level_base": "Low",
+                "has_wellness": False,
+                "has_workload": False
+            }
+
+        if target_date_obj == today_obj and player['prediction_ready'] == 0:
+            cache = conn.execute('''
+                SELECT * FROM predictions
+                WHERE player_id = ? AND DATE(prediction_date) = DATE(?)
+                AND model_version = ? AND feature_version = ?
+                ORDER BY prediction_date DESC LIMIT 1
+            ''', (player_id, target_date_str, MODEL_VERSION, FEATURE_VERSION)).fetchone()
+            if cache:
+                risk_data = _compute_risk_features(conn, player_id, target_date_obj)
+                return _build_prediction_summary(
+                    float(cache['risk_score']),
+                    cache['risk_level'],
+                    risk_data,
+                    target_date_obj
+                )
+
+        risk_data = _compute_risk_features(conn, player_id, target_date_obj)
+        if not risk_data['has_wellness'] and not risk_data['has_workload']:
+            return {
+                "risk_score": 0,
+                "risk_level": "Insufficient Data",
+                "risk_level_base": "Low",
+                "has_wellness": False,
+                "has_workload": False
+            }
+
+        X_input = pd.DataFrame(risk_data['feature_vec'])
+        X_scaled = scaler.transform(X_input)
+        probabilities = model.predict_proba(X_scaled)[0]
+        risk_score, risk_level = _score_prediction(probabilities, risk_data)
+        return _build_prediction_summary(risk_score, risk_level, risk_data, target_date_obj)
+    except Exception as e:
+        logger.error(f"Risk snapshot error for player {player_id}: {e}")
+        return {
+            "risk_score": 0,
+            "risk_level": "Prediction Error",
+            "risk_level_base": "Low",
+            "has_wellness": False,
+            "has_workload": False
+        }
+    finally:
+        conn.close()
+
 def get_player_prediction(player_id, period=30, target_date=None, force_refresh=False):
     """Fetches the latest data for a player and predicts their injury risk with caching and retry logic."""
     start_time = time.time()
@@ -91,10 +186,12 @@ def get_player_prediction(player_id, period=30, target_date=None, force_refresh=
     if not model or not scaler:
         return _get_default_response(period, "Model needs training.")
     
+    today_obj = pd.to_datetime('today').normalize()
     if target_date is None:
-        target_date_obj = pd.to_datetime('today').normalize()
+        target_date_obj = today_obj
     else:
         target_date_obj = pd.to_datetime(target_date).normalize()
+    snapshot_mode = target_date_obj != today_obj
     
     target_date_str = target_date_obj.strftime('%Y-%m-%d')
     
@@ -105,6 +202,42 @@ def get_player_prediction(player_id, period=30, target_date=None, force_refresh=
         player = conn.execute('SELECT * FROM players WHERE player_id = ?', (player_id,)).fetchone()
         if not player:
             return _get_default_response(period, "Player not found.")
+
+        if snapshot_mode:
+            risk_data = _compute_risk_features(conn, player_id, target_date_obj)
+
+            if not risk_data['has_wellness'] and not risk_data['has_workload']:
+                return _get_default_response(period, "Insufficient data for prediction. Please complete your daily wellness check-in.")
+
+            X_input = pd.DataFrame(risk_data['feature_vec'])
+            X_scaled = scaler.transform(X_input)
+            probabilities = model.predict_proba(X_scaled)[0]
+            risk_score, risk_level = _score_prediction(probabilities, risk_data)
+
+            confidence_suffix = ""
+            last_date = pd.to_datetime(risk_data.get('wellness_df').iloc[0]['entry_date']) if not risk_data['wellness_df'].empty else None
+            if last_date and (target_date_obj - last_date).days > 2:
+                confidence_suffix = " (Low Confidence - Stale Data)"
+            elif not risk_data['has_workload']:
+                confidence_suffix = " (Wellness-only)"
+            elif not risk_data['has_wellness']:
+                confidence_suffix = " (Workload-only)"
+
+            risk_level_display = risk_level + confidence_suffix
+            top_factors, explanation = _generate_shap_explanation(model, X_scaled, X_input.columns, risk_data)
+
+            duration = (time.time() - start_time) * 1000
+            logger.info(json.dumps({
+                "event": "prediction_snapshot",
+                "player_id": player_id,
+                "target_date": target_date_str,
+                "duration_ms": round(duration, 2)
+            }))
+
+            return _build_prediction_payload(
+                conn, player_id, risk_score, risk_level, risk_level_display,
+                period, model, scaler, risk_data, top_factors, explanation
+            )
         
         # Deadlock Recovery: If stuck in "In-Progress" (2) for > 2 mins, reset
         if player['prediction_ready'] == 2:

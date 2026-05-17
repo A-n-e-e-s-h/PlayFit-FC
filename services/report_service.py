@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-from ml.ml_service import get_player_prediction
+from ml.ml_service import get_player_risk_snapshot
 
 def get_db_connection():
     conn = sqlite3.connect('playfit.db')
@@ -111,24 +111,13 @@ def generate_report_data(team_code, period_days=30, squad='all', target_date=Non
             
             is_injured = True if injury_status_row and injury_status_row['active_injury'] == 1 else False
             
-            # C. Prediction as of target_date
-            pred_row = conn.execute('''
-                SELECT risk_level, risk_score 
-                FROM predictions 
-                WHERE player_id = ? AND date(prediction_date) <= date(?)
-                ORDER BY prediction_date DESC, prediction_id DESC LIMIT 1
-            ''', (p_id, target_date_str)).fetchone()
+            # C. Snapshot prediction as of target_date
+            prediction = get_player_risk_snapshot(p_id, target_date=target_date_str)
+            risk_level = prediction.get('risk_level', 'Low')
+            risk_score = float(prediction.get('risk_score', 0) or 0)
+            risk_level_base = prediction.get('risk_level_base', 'Low')
             
-            if not pred_row:
-                # Trigger live prediction and save to DB
-                prediction = get_player_prediction(p_id)
-                risk_level = prediction.get('risk_level', 'Low')
-                risk_score = float(prediction.get('risk_score', 0))
-            else:
-                risk_level = pred_row['risk_level']
-                risk_score = float(pred_row['risk_score'])
-            
-            data['risk_dist'][risk_level] = data['risk_dist'].get(risk_level, 0) + 1
+            data['risk_dist'][risk_level_base] = data['risk_dist'].get(risk_level_base, 0) + 1
             
             fatigue = 'N/A'
             sleep = 'N/A'
@@ -181,11 +170,11 @@ def generate_report_data(team_code, period_days=30, squad='all', target_date=Non
                 status = 'Recovering'
                 if not any(inj['name'] == name for inj in data['active_injuries']):
                     data['active_injuries'].append({'name': name, 'type': 'Recent Injury', 'recommendation': 'Monitor load closely.'})
-            elif risk_level == 'High' or acwr > 1.3:
+            elif risk_level_base == 'High' or acwr > 1.3:
                 status = 'At Risk'
             
             # High Risk Alerts logic
-            if risk_level == 'High' or risk_score > 60 or acwr > 1.3:
+            if risk_level_base == 'High' or risk_score > 60 or acwr > 1.3:
                 reasons = []
                 if fatigue != 'N/A' and int(fatigue) >= 7: reasons.append("High fatigue")
                 if sleep == 'Poor': reasons.append("Poor sleep")
@@ -199,11 +188,11 @@ def generate_report_data(team_code, period_days=30, squad='all', target_date=Non
                 })
             
             # Add to players list
-            data['players'].append({
+                data['players'].append({
                 'name': name,
                 'position': p['position'],
                 'risk_score': risk_score,
-                'risk_level': risk_level,
+                'risk_level': risk_level_base,
                 'acwr': acwr,
                 'fatigue': fatigue,
                 'sleep': sleep,

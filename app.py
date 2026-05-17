@@ -16,10 +16,11 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import date, datetime, timedelta
-from ml.ml_service import get_player_prediction, get_predictive_logic, _get_default_response, queue_prediction, check_and_trigger_learning
+from ml.ml_service import get_player_prediction, get_player_risk_snapshot, get_predictive_logic, _get_default_response, queue_prediction, check_and_trigger_learning
 
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_here' # Change this in production
+_RUNTIME_SCHEMA_READY = False
 
 # ─── SMTP Configuration (loaded from .env) ────────────────────────────────────
 try:
@@ -43,8 +44,18 @@ from routes.report import report_bp
 app.register_blueprint(report_bp)
 
 def get_db_connection():
+    global _RUNTIME_SCHEMA_READY
     conn = sqlite3.connect('playfit.db')
     conn.row_factory = sqlite3.Row
+    if not _RUNTIME_SCHEMA_READY:
+        try:
+            notif_columns = {row['name'] for row in conn.execute("PRAGMA table_info(notifications)").fetchall()}
+            if notif_columns and 'is_seen' not in notif_columns:
+                conn.execute("ALTER TABLE notifications ADD COLUMN is_seen BOOLEAN DEFAULT 0")
+                conn.commit()
+            _RUNTIME_SCHEMA_READY = True
+        except sqlite3.Error:
+            pass
     return conn
 
 class User(UserMixin):
@@ -614,7 +625,7 @@ def dashboard():
                 entry = conn.execute('SELECT 1 FROM wellness_data WHERE player_id = ? AND entry_date = ?', (p_id, today)).fetchone()
                 has_logged_today = bool(entry)
                 
-                notifications_db = conn.execute('SELECT notif_id as id, message, created_at, is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
+                notifications_db = conn.execute('SELECT notif_id as id, message, created_at, COALESCE(is_seen, 0) as is_seen FROM notifications WHERE player_id = ? AND is_read = 0 ORDER BY created_at DESC', (p_id,)).fetchall()
                 notifications = [dict(row) for row in notifications_db]
         except sqlite3.Error:
             pass
@@ -933,7 +944,7 @@ def dismiss_notification(notif_id):
         player_check = conn.execute('SELECT p.player_id FROM players p JOIN notifications n ON p.player_id = n.player_id WHERE n.notif_id = ? AND p.user_id = ?', (notif_id, current_user.id)).fetchone()
         
         if player_check:
-            conn.execute('UPDATE notifications SET is_read = 1 WHERE notif_id = ?', (notif_id,))
+            conn.execute('UPDATE notifications SET is_read = 1, is_seen = 1 WHERE notif_id = ?', (notif_id,))
             conn.commit()
     except sqlite3.Error:
         pass
@@ -1023,18 +1034,54 @@ def analytics():
     
     selected_squad = request.args.get('squad', 'all')
     selected_date = request.args.get('date', date.today().isoformat())
+    try:
+        selected_date_obj = pd.to_datetime(selected_date).normalize()
+        selected_date = selected_date_obj.strftime('%Y-%m-%d')
+    except Exception:
+        selected_date_obj = pd.to_datetime(date.today().isoformat()).normalize()
+        selected_date = selected_date_obj.strftime('%Y-%m-%d')
     
     conn = get_db_connection()
     try:
+        prediction_cache = {}
+
+        def resolve_snapshot_prediction(player_id, target_date_str):
+            cache_key = (player_id, target_date_str)
+            if cache_key not in prediction_cache:
+                prediction_cache[cache_key] = get_player_risk_snapshot(player_id, target_date=target_date_str)
+            return prediction_cache[cache_key]
+
+        def normalize_risk_level(level_text, risk_score):
+            if level_text in ('High', 'Medium', 'Low'):
+                return level_text
+            level_text = str(level_text or '')
+            if level_text.startswith('High'):
+                return 'High'
+            if level_text.startswith('Medium'):
+                return 'Medium'
+            if level_text.startswith('Low'):
+                return 'Low'
+            if risk_score > 65:
+                return 'High'
+            if risk_score > 35:
+                return 'Medium'
+            return 'Low'
+
         # --- Helper for dynamic recovery timeline ---
-        def get_team_avg_recovery(conn, team_code):
+        def get_team_avg_recovery(conn, team_code, squad_name='all'):
             try:
                 # Look at players in the team
-                players = conn.execute('''
+                player_query = '''
                     SELECT p.player_id FROM players p
                     JOIN users u ON p.user_id = u.user_id
                     WHERE u.team_code = ?
-                ''', (team_code,)).fetchall()
+                '''
+                params = [team_code]
+                if squad_name != 'all':
+                    player_query += ' AND p.squad = ?'
+                    params.append(squad_name)
+
+                players = conn.execute(player_query, params).fetchall()
                 
                 player_ids = [p['player_id'] for p in players]
                 if not player_ids: return 14.0
@@ -1090,23 +1137,6 @@ def analytics():
         rows = conn.execute(query, params).fetchall()
         
         team_players = [dict(r) for r in rows]
-        
-        # 2. Batch Prediction Fetching for selected date
-        player_ids = [p['player_id'] for p in team_players]
-        preds_map = {}
-        if player_ids:
-            placeholders = ', '.join(['?'] * len(player_ids))
-            latest_preds_db = conn.execute(f'''
-                SELECT p1.* 
-                FROM predictions p1
-                JOIN (
-                    SELECT player_id, MAX(prediction_date) as max_date 
-                    FROM predictions 
-                    WHERE player_id IN ({placeholders}) AND DATE(prediction_date) <= DATE(?)
-                    GROUP BY player_id
-                ) p2 ON p1.player_id = p2.player_id AND p1.prediction_date = p2.max_date
-            ''', player_ids + [selected_date]).fetchall()
-            preds_map = {p['player_id']: dict(p) for p in latest_preds_db}
 
         total_risk = 0
         high_risk_count = 0
@@ -1114,20 +1144,13 @@ def analytics():
         
         for p in team_players:
             p_id = p['player_id']
-            pred = preds_map.get(p_id)
-            
-            if pred:
-                p['risk_score'] = pred['risk_score']
-                p['risk_level'] = pred['risk_level']
-            else:
-                # If no cache for this date, trigger calculation but use safe default for UI
-                p['risk_score'] = 0
-                p['risk_level'] = 'Calculating...'
-                if selected_date == date.today().isoformat():
-                    queue_prediction(p_id)
+            pred = resolve_snapshot_prediction(p_id, selected_date)
+            p['risk_score'] = float(pred.get('risk_score', 0) or 0)
+            p['risk_level'] = pred.get('risk_level', 'Low')
+            p['risk_level_base'] = pred.get('risk_level_base') or normalize_risk_level(p['risk_level'], p['risk_score'])
             
             total_risk += p['risk_score']
-            if p['risk_level'] == 'High':
+            if p['risk_level_base'] == 'High':
                 high_risk_count += 1
                 
             # Check latest participation status
@@ -1185,7 +1208,7 @@ def analytics():
         }
         
         for p in team_players:
-            risk_level = p.get('risk_level', 'Low')
+            risk_level = p.get('risk_level_base', 'Low')
             if risk_level == 'High':
                 color_class = 'bg-red-500 ring-red-500/20'
                 status_label = 'CRITICAL'
@@ -1285,29 +1308,17 @@ def analytics():
         }
         
         # 3. Dynamic Recovery Timeline
-        avg_recovery = get_team_avg_recovery(conn, current_user.team_code)
+        avg_recovery = get_team_avg_recovery(conn, current_user.team_code, selected_squad)
         
         # Trends (Dynamic based on selected date)
         try:
             print(f"Calculating analytics for: {selected_date}")
-            past_date = (pd.to_datetime(selected_date) - timedelta(days=7)).strftime('%Y-%m-%d')
+            past_date = (selected_date_obj - timedelta(days=7)).strftime('%Y-%m-%d')
             past_total_risk = 0
-            
-            # Batch fetch past predictions
-            past_preds_db = conn.execute(f'''
-                SELECT p1.* 
-                FROM predictions p1
-                JOIN (
-                    SELECT player_id, MAX(prediction_date) as max_date 
-                    FROM predictions 
-                    WHERE player_id IN ({placeholders}) AND DATE(prediction_date) <= DATE(?)
-                    GROUP BY player_id
-                ) p2 ON p1.player_id = p2.player_id AND p1.prediction_date = p2.max_date
-            ''', player_ids + [past_date]).fetchall()
-            past_preds_map = {p['player_id']: p['risk_score'] for p in past_preds_db}
-            
+
             for p in team_players:
-                past_total_risk += past_preds_map.get(p['player_id'], 0)
+                past_pred = resolve_snapshot_prediction(p['player_id'], past_date)
+                past_total_risk += float(past_pred.get('risk_score', 0) or 0)
             
             past_avg_risk = round(past_total_risk / len(team_players), 1) if team_players else 0
             risk_trend = round(avg_risk - past_avg_risk, 1)
