@@ -242,18 +242,6 @@ python app.py
 
 ---
 
-# 📷 Project Preview
-
-*Add screenshots of:*
-
-- Coach Dashboard
-- Player Dashboard
-- Risk Prediction Results
-- Trend Visualizations
-- PDF Reports
-
----
-
 # 👤 Author
 
 **Mohammed Aneesh**
