@@ -1,251 +1,263 @@
-# 🏃‍♂️ PLAYFIT FC – Athlete Injury Risk Analytics System
+# 🏃‍♂️ PLAYFIT FC – Athlete Performance & Injury Risk Prediction System
 
 ## 📌 Project Overview
 
-PLAYFIT FC is a sports analytics project that analyzes athlete wellness and workload data to identify injury risk trends using data analysis and machine learning.
+PLAYFIT FC is a sports analytics and machine learning application designed to analyze athlete workload, wellness and recovery data to identify potential injury risk patterns.
 
-The project demonstrates an end-to-end analytics workflow including data collection, preprocessing, feature engineering, predictive modeling, dashboard creation, and automated reporting to support data-driven decision making in sports performance.
+The system processes athlete activity data, performs exploratory data analysis, applies feature engineering techniques and uses machine learning to estimate injury risk.
 
----
+It also provides interactive dashboards and automated PDF reports to help coaches monitor athlete performance, understand workload trends and make data-informed decisions.
 
-# 🎯 Business Problem
+The project demonstrates an end-to-end workflow involving data processing, statistical analysis, predictive modeling, database management, visualization and reporting.
 
-Athlete injuries negatively affect team performance, player availability, and overall competitive success.
+## 🎯 Business Problem
 
-Traditional injury monitoring often relies on manual observations, making it difficult to detect early warning signs.
+Athlete injuries can negatively impact team performance, player availability and competitive outcomes.
 
-This project uses historical player data to:
+Traditional injury monitoring often relies on manual observations, making it difficult to identify workload imbalances and potential injury warning signs.
 
-- Identify injury risk factors
-- Predict injury probability
-- Monitor workload trends
-- Generate actionable insights for coaches
-- Support evidence-based decision making
+PLAYFIT FC aims to address this challenge by:
 
----
+- Identifying workload and wellness patterns associated with injury risk.
+- Estimating injury probability using machine learning.
+- Monitoring athlete workload and recovery trends.
+- Identifying athletes with elevated risk indicators.
+- Generating analytical reports for coaches.
+- Supporting evidence-based sports performance decisions.
 
-# 📊 Dataset
+## 📊 Dataset
 
-The project uses simulated time-series athlete data representing 120 days of player activity.
+The project uses a simulated time-series dataset representing 120 days of athlete activity and wellness information.
 
-### Data includes:
+**Key dataset attributes:**
 
-- Training workload
-- Match workload
-- Sleep quality
-- Fatigue level
-- Muscle soreness
-- Acute:Chronic Workload Ratio (ACWR)
-- Injury status
+| Feature | Description |
+|---|---|
+| Training Workload | Daily training activity load |
+| Match Workload | Workload associated with matches |
+| Sleep Quality | Athlete sleep and recovery indicator |
+| Fatigue Level | Reported fatigue measurement |
+| Muscle Soreness | Muscle soreness indicator |
+| ACWR | Acute:Chronic Workload Ratio |
+| Injury Status | Historical injury indicator |
 
-The simulated dataset was designed to mimic real-world athlete monitoring systems.
+The simulated dataset is designed to represent athlete monitoring data commonly used in sports performance analysis.
 
----
+## 🧹 Data Preparation & Feature Engineering
 
-# 🧹 Data Preparation
+The data preparation workflow includes:
 
-The analytical workflow includes:
+- Data cleaning and validation.
+- Handling missing values.
+- Data transformation and normalization.
+- Feature engineering.
+- Time-series organization.
+- Feature scaling.
+- Preparation of model-ready datasets.
 
-- Data Cleaning
-- Handling missing values
-- Feature Engineering
-- Data Transformation
-- Time-series organization
-- Feature Scaling
+**Derived features include:**
 
-Derived features include:
+- Acute:Chronic Workload Ratio (ACWR).
+- Recovery indicators.
+- Rolling workload averages.
+- Workload trends.
+- Risk-related metrics.
 
-- ACWR
-- Recovery indicators
-- Rolling workload averages
-- Risk-related metrics
+## 📈 Exploratory Data Analysis (EDA)
 
----
+The project analyzes athlete data to identify meaningful patterns and relationships.
 
-# 📈 Exploratory Data Analysis
+**Key analyses include:**
 
-Key analyses performed include:
+- Player workload trends.
+- Fatigue level distribution.
+- Sleep quality analysis.
+- Injury occurrence patterns.
+- ACWR trend analysis.
+- Wellness score comparisons.
+- High-risk athlete identification.
 
-- Player workload trends
-- Fatigue distribution
-- Sleep quality analysis
-- Injury occurrence patterns
-- ACWR trend analysis
-- Wellness score comparisons
-- High-risk player identification
+These analyses help understand how workload and wellness indicators vary across athletes and over time.
 
----
+## 🤖 Machine Learning & Predictive Analytics
 
-# 🤖 Predictive Analytics
+A machine learning model is developed using athlete workload and wellness indicators to estimate potential injury risk.
 
-A Machine Learning model was developed to predict athlete injury risk.
+**Model outputs include:**
 
-### Model Output
+- Injury Risk Score (0–100%).
+- Risk Classification.
+  - 🟢 Low Risk
+  - 🟡 Medium Risk
+  - 🔴 High Risk
 
-- Injury Risk Score (0–100%)
-- Risk Category
-  - Low
-  - Medium
-  - High
+The model uses historical athlete data and engineered features to generate risk estimates based on identified patterns.
 
-The model combines workload and wellness indicators to estimate injury probability.
+## 📊 Dashboard & Visualization
 
----
+PLAYFIT FC provides interactive dashboards designed for coaches and athletes.
 
-# 📊 Dashboard & Visualizations
+**Coach Dashboard**
 
-The project includes interactive dashboards for both coaches and players.
+- Team-wide injury risk overview.
+- High-risk athlete identification.
+- Workload monitoring.
+- Fatigue and recovery trends.
+- Injury distribution analysis.
+- Risk-related recommendations.
 
-### Coach Dashboard
+**Player Dashboard**
 
-- Team risk overview
-- High-risk athlete identification
-- Workload monitoring
-- Fatigue trends
-- Injury distribution
-- Smart recommendations
+- Individual wellness tracking.
+- Injury risk score.
+- Workload and performance trends.
+- Recovery insights.
+- Historical activity summaries.
 
-### Player Dashboard
+## 📄 Automated Reporting
 
-- Individual wellness tracking
-- Injury risk score
-- Performance trends
-- Recovery insights
+The application generates PDF reports containing:
 
----
+- Team performance summaries.
+- Individual athlete risk assessments.
+- Workload analysis.
+- Wellness and recovery trends.
+- Risk prediction summaries.
+- Analytical recommendations.
 
-# 📄 Automated Reporting
+These reports help coaches review athlete data and monitor performance indicators over time.
 
-Professional PDF reports summarize:
+## 🗄 Database Design
 
-- Team performance
-- Player injury risk
-- Workload analysis
-- Trend summaries
-- Actionable recommendations
-
----
-
-# 🗄 Database Design
-
-The project stores structured analytical data using SQLite.
+SQLite is used to store and manage structured athlete and analytical data.
 
 | Table | Purpose |
-|--------|----------|
-| Players | Player information |
-| Wellness Data | Daily wellness metrics |
-| Training Data | Training workload |
-| Match Data | Match statistics |
-| Risk Predictions | ML prediction results |
-| Notifications | Alert history |
+|---|---|
+| Players | Stores athlete information |
+| Wellness Data | Maintains daily wellness metrics |
+| Training Data | Stores training workload records |
+| Match Data | Maintains match statistics |
+| Risk Predictions | Stores machine learning prediction results |
+| Notifications | Maintains alert history |
 
----
+## 🔄 Analytics & Machine Learning Workflow
 
-# 🛠 Tools & Technologies
-
-### Programming
-
-- Python
-
-### Data Analysis
-
-- Pandas
-- NumPy
-
-### Machine Learning
-
-- Scikit-learn
-
-### Database
-
-- SQLite
-- SQL
-
-### Visualization
-
-- Matplotlib
-- Dashboard Interface
-
-### Reporting
-
-- ReportLab
-
-### Web Framework
-
-- Flask
-
----
-
-# 📊 Analytics Workflow
-
-```
-Data Collection
-        │
-        ▼
-Data Cleaning
-        │
-        ▼
-Feature Engineering
-        │
-        ▼
-Exploratory Data Analysis
-        │
-        ▼
-Machine Learning Model
-        │
-        ▼
-Risk Prediction
-        │
-        ▼
-Dashboards & Reports
+```text
+       Athlete Activity Data
+                 |
+                 ▼
+           Data Cleaning
+                 |
+                 ▼
+        Feature Engineering
+                 |
+                 ▼
+     Exploratory Data Analysis
+                 |
+                 ▼
+       Feature Preparation
+                 |
+                 ▼
+       Machine Learning Model
+                 |
+                 ▼
+        Injury Risk Scoring
+                 |
+                 ▼
+       Risk Categorization
+                 |
+                 ▼
+       Interactive Dashboards
+                 |
+                 ▼
+       Automated PDF Reports
 ```
 
----
+## 💡 Key Outcomes
 
-# 📌 Key Outcomes
+- Identified workload and wellness patterns associated with potential injury risk.
+- Developed machine learning-based injury risk estimation.
+- Analyzed athlete performance and recovery trends.
+- Created dashboards for individual and team-level monitoring.
+- Automated analytical reporting.
+- Demonstrated an end-to-end sports analytics and machine learning workflow.
 
-- Identified workload patterns associated with increased injury risk.
-- Predicted athlete injury probability using machine learning.
-- Generated dashboards for monitoring player wellness.
-- Automated analytical reports to support coaching decisions.
-- Demonstrated an end-to-end sports analytics workflow.
+## 🛠️ Technologies & Tools
 
----
+| Category | Technologies |
+|---|---|
+| Programming Language | Python |
+| Data Analysis | Pandas, NumPy |
+| Machine Learning | Scikit-learn |
+| Database | SQLite, SQL |
+| Data Visualization | Matplotlib |
+| Backend Development | Flask |
+| Reporting | ReportLab |
+| Development Tools | Git, GitHub |
 
-# 🚀 Skills Demonstrated
+## 🚀 Skills Demonstrated
 
-- Data Cleaning
-- Data Analysis
+- Python Programming
+- SQL & Database Management
+- Data Cleaning & Preprocessing
 - Exploratory Data Analysis (EDA)
+- Statistical Analysis
 - Feature Engineering
-- SQL
-- SQLite
-- Python
-- Pandas
-- NumPy
+- Time-Series Analysis
 - Machine Learning
-- Dashboard Development
-- Data Visualization
 - Predictive Analytics
-- Report Automation
+- Data Visualization
+- Dashboard Development
+- Automated Report Generation
 
----
+## ⚙️ Installation & Setup
 
-# ▶️ Installation
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/A-n-e-e-s-h/PlayFit-FC.git
+```
+
+### 2. Navigate to the project directory
+
+```bash
 cd PlayFit-FC
+```
+
+### 3. Create a virtual environment (recommended)
+
+```bash
+python -m venv venv
+```
+
+### 4. Activate the environment
+
+**Windows:**
+```bash
+venv\Scripts\activate
+```
+
+**Linux / macOS:**
+```bash
+source venv/bin/activate
+```
+
+### 5. Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
+
+### 6. Run the application
+
+```bash
 python app.py
 ```
 
----
+Open the local application URL displayed in the terminal.
 
-# 👤 Author
+## 👨‍💻 Author
 
 **Mohammed Aneesh**
 
-Aspiring Data Analyst
-
-**Skills:** Python • SQL • SQLite • Pandas • NumPy • Tableau • Excel • Machine Learning
+**Technical Skills:** Python • SQL • SQLite • Pandas • NumPy • Scikit-learn • Machine Learning • Data Analysis • Data Visualization
